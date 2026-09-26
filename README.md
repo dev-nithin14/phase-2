@@ -1,104 +1,122 @@
-# `<Project Name>` — `<one-line tagline>`
+# 🚀 Beyond the Resume — HackMysuru 1.0 Phase 2
 
-> HackMysuru 1.0 · Phase 1 · Civic Governance & Clean Mysuru
-> Team `<Team Name>` (`<Team ID>`)
-
-| 📎 Submission links | 📋 Templates | 🏗️ Architecture | 🛡️ Hard constraints | ⚙️ Setup | 🤖 AI usage | ⚠️ Limitations |
-|---|---|---|---|---|---|---|
-| [resource.md](./resource.md) | [resource-templates/](./resource-templates/) | [docs/architecture.md](./docs/architecture.md) | [docs/constraints.md](./docs/constraints.md) | [docs/setup.md](./docs/setup.md) | [ai.md](./ai.md) | [docs/limitations.md](./docs/limitations.md) |
-
-<!--
-This README is the overview. Detailed content lives in the linked files so each stays short.
-Keep the section ORDER below. Reviewers look for each section in the same place in every repo.
--->
+> **"Don't just claim your skills. Prove them."**  
+> An evidence-backed technical hiring platform connecting developers and recruiters through verified technical assessments, code repository evidence, deterministic matching, and dynamic Skill Passports.
 
 ---
 
-## 1. Problem Understanding
+## 🌟 The Core Differentiator
 
-<!-- Which sub-problem did you pick and WHY that one? 5–8 sentences. -->
+Traditional platforms (LinkedIn, Indeed) rely primarily on subjective text claims on a resume. **Beyond the Resume** grounds technical hiring in verifiable evidence:
 
-**Chosen sub-problem:** `<e.g. Routing>`
-
-- **The gap we saw:** `<What actually goes wrong today, in Mysuru terms>`
-- **Why it matters:** `<Consequence: delay, bounced complaints, lost trust, health risk>`
-- **Why we chose this over the others:** `<Your reasoning>`
-- **What "solved" looks like for us:** `<A measurable outcome, e.g. "a citizen never has to pick an office">`
-
-## 2. Target Users & Mysuru Context
-
-| User | Their situation | What they need from us |
-|---|---|---|
-| `<Resident in a ward at the MCC–panchayat edge>` | `<No idea which office owns the drain; patchy 4G>` | `<Report once, see who owns it, see status>` |
-| `<Panchayat / MCC officer>` | `<...>` | `<...>` |
-| `<Sanitation / field worker>` | `<Basic Android phone, low data>` | `<...>` |
-
-**Local context we designed for:** `<jurisdiction overlap, connectivity, Kannada/English, device types, literacy>`
-
-## 3. Solution Overview
-
-<!-- Plain language. A non-engineer should follow this. -->
-
-`<2–4 sentence summary>`
-
-**Core flow:**
-1. `<Citizen does X>`
-2. `<System does Y>`
-3. `<Staff does Z>`
-4. `<Citizen sees outcome>`
-
-**Screenshots:** `<2–4 images under docs/images/, each < 1 MB>`
-
-## 4. Architecture
-
-`<One-sentence summary, e.g. "Offline-first PWA → REST API → PostgreSQL/PostGIS, with a rules-based routing service.">`
-
-➡️ Diagram, components, data model and APIs: **[docs/architecture.md](./docs/architecture.md)**
-
-## 5. Tech Stack & AI Usage
-
-**Stack:** `<React PWA · FastAPI · PostgreSQL + PostGIS · Render>` (full rationale in [docs/architecture.md](./docs/architecture.md#tech-stack))
-
-**AI tools used in development:** `<ChatGPT, Copilot, ...>`
-**AI inside the product:** `<e.g. YOLOv8 for bin detection / none>`
-
-➡️ Full disclosure: **[ai.md](./ai.md)**
-
-## 6. Decision Log (Summary)
-
-<!-- The full 1-page Decision Log is a PDF on Google Drive, linked in resource.md. ≤ 3 lines here. -->
-
-- **Chose:** `<approach>`, **over:** `<rejected alternative>`
-- **Because:** `<the trade-off in one line>`
-- **First thing to break at city scale:** `<one line>`
-
-➡️ Full decision log: **[resource.md](./resource.md#4-submission-artifacts-google-drive)** · Template: **[decision-log-template.md](./resource-templates/decision-log-template.md)**
-
-## 7. Setup & Run
-
-```bash
-git clone <repo-url> && cd <repo>
-<one-line install> && <one-line run>
+```text
+Skills + Projects + Technical Assessments + Assessment Evidence + Skill Matching + Candidate Ranking = Skill Passport
 ```
 
-➡️ Prerequisites, environment variables, seed data and offline testing: **[docs/setup.md](./docs/setup.md)**
-
-## 8. Known Limitations
-
-- `<Top limitation 1>`
-- `<Top limitation 2>`
-- `<Top limitation 3>`
-
-➡️ Full list, edge cases and scaling roadmap: **[docs/limitations.md](./docs/limitations.md)**
+### Complete Product Flow:
+```text
+DISCOVER → MATCH → CONNECT → ASSESS → VERIFY → PROVE → HIRE
+```
 
 ---
 
-## Team
+## 🏗️ System Architecture
 
-| Name | Role | GitHub |
-|---|---|---|
-| `<...>` | `<...>` | `@<...>` |
+1. **Frontend Architecture**:
+   - Modern React 19 + TypeScript on Vite.
+   - Design System: Custom tokens, glassmorphism borders, electric violet/cyan accents (`#6366F1`, `#06B6D4`), verified emerald indicators (`#10B981`).
+   - Integrated Monaco Editor (`@monaco-editor/react`) supporting JavaScript & Python coding challenges.
+   - Proctoring & Telemetry engine tracking fullscreen exits, tab switching, and clipboard activity with humane review recommendations.
 
-## License
+2. **Backend & Database Architecture**:
+   - Supabase PostgreSQL with 19 normalized, secure tables.
+   - Row Level Security (RLS) enabled on every exposed table.
+   - Deterministic Matching Engine implementing weighted skill overlap, verified scores, and repository proof.
+   - Deterministic Scoring Engine based on Correctness (50%), Efficiency (20%), Code Quality (15%), Test Coverage (10%), and Time Performance (5%).
+   - Sandboxed execution abstraction with timeouts and memory caps.
 
-`<MIT / Apache-2.0 / None>`. You retain full ownership of your code.
+3. **AI Agent Suite**:
+   - **Agent 1 (Skill Matching)**: Produces transparent match rationales without altering deterministic scores.
+   - **Agent 2 (Assessment Generator)**: Drafts coding problems tailored to target engineering roles for recruiter approval.
+   - **Agent 3 (Evaluation Agent)**: Highlights technical strengths and observations from objective test outputs.
+   - **Agent 4 (Integrity Analysis Agent)**: Analyzes telemetry signals into balanced human-review recommendations.
+
+---
+
+## 🗄️ Database Tables (Supabase PostgreSQL)
+
+- `profiles` — Developer and Recruiter professional profiles
+- `skills` — Standardized technical competencies (React, Python, SQL, DSA, etc.)
+- `profile_skills` — Self-declared vs assessed levels & verification status
+- `projects` — Code repositories and live application evidence
+- `project_skills` — Demonstrable skills mapped to project code
+- `companies` — Verified employer profiles
+- `jobs` — Opportunities with weighted required skills
+- `job_skills` — Skill weight distribution (validating to 100%)
+- `applications` — Multi-stage application lifecycle tracker
+- `job_matches` — Transparent deterministic compatibility scores
+- `notifications` — In-app notification center
+- `assessments` — Technical coding assessments
+- `assessment_questions` — Coding problems with starter code & test suites
+- `assessment_invitations` — Candidate assessment access tokens
+- `assessment_attempts` — Candidate assessment sessions
+- `submissions` — Code submissions and test execution results
+- `integrity_events` — Timestamped telemetry audit logs
+- `assessment_scores` — Objective score breakdowns
+- `skill_evidence` — Verified evidence records powering the Skill Passport
+
+---
+
+## 🚀 Quick Setup & Run Locally
+
+### 1. Prerequisites
+- Node.js v18+ (tested on Node v24)
+- npm v9+
+
+### 2. Installation
+```bash
+git clone https://github.com/dev-nithin14/phase-2.git
+cd phase-2
+npm install
+```
+
+### 3. Environment Variables
+Create `.env` based on `.env.example`:
+```env
+VITE_SUPABASE_URL=https://ogqxjsbzwmrxnitewvdx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 4. Start Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+---
+
+## 🧪 Testing the Complete Hackathon Flow
+
+The platform includes a **Hackathon Quick-Switch Test Bar** at the top of the screen:
+
+1. **Candidate Discovery & Match**:
+   - Explore jobs at `/jobs`.
+   - See your live deterministic match score (e.g., **91% Match** for Samarth M N on *Senior Frontend Developer*).
+   - Click **View & Apply** to see the transparent skill breakdown and AI Agent 1 rationale.
+
+2. **Skill Passport Credential**:
+   - Navigate to `/candidate/passport`.
+   - Inspect the **Verified Skill Passport** with verified assessment scores (React 91/100, JavaScript 88/100), repository links, and print view.
+
+3. **Take a Coding Challenge**:
+   - Navigate to `/candidate/assessments` and launch a challenge.
+   - Review transparent privacy disclosures and consent.
+   - Write code in the **Monaco Editor** in JavaScript or Python.
+   - Run tests against the sandbox runner.
+   - Submit to receive a deterministic breakdown (Correctness, Efficiency, Quality, Coverage, Time).
+
+4. **Recruiter Command Center**:
+   - Click **Recruiter View** in the top test bar.
+   - Visit `/recruiter/dashboard` to see active jobs, candidate rankings, and the live integrity telemetry audit stream.
+   - Inspect job-specific rankings at `/recruiter/jobs/job_frontend_cloudscale/candidates`.
+   - Shortlist candidates, invite them to assessments, or move them directly to interview.
