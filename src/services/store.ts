@@ -190,11 +190,35 @@ class Store {
   }
 
   public async createJob(jobData: Omit<Job, 'id' | 'created_at'>): Promise<Job> {
-    const recruiterId = jobData.recruiter_id;
+    const { data: { user: authenticatedUser }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw new Error(`Could not verify Supabase Auth user: ${authError.message}`);
+    if (!authenticatedUser) throw new Error('No authenticated Supabase user. Sign in again before creating a job.');
+
+    const recruiterId = authenticatedUser.id;
+    if (jobData.recruiter_id !== recruiterId) {
+      throw new Error('The job recruiter_id does not match the authenticated Supabase user.');
+    }
     const companyId = jobData.company_id;
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session || sessionData.session.user.id !== recruiterId || !companyId) {
-      throw new Error('An authenticated recruiter profile and company are required to create a job.');
+    if (!companyId) throw new Error('Select a company owned by this recruiter before creating a job.');
+
+    const { data: recruiterProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, role')
+      .eq('id', recruiterId)
+      .single();
+    if (profileError) throw new Error(`Could not verify recruiter profile: ${profileError.message}`);
+    if (recruiterProfile.role !== 'RECRUITER') {
+      throw new Error(`Job creation requires profile role RECRUITER; current profile role is ${recruiterProfile.role}.`);
+    }
+
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('id, recruiter_id')
+      .eq('id', companyId)
+      .single();
+    if (companyError) throw new Error(`Could not verify selected company ownership: ${companyError.message}`);
+    if (company.recruiter_id !== recruiterId) {
+      throw new Error('The selected company is not owned by the authenticated recruiter. Choose one of your own companies.');
     }
 
     const insertPayload = {

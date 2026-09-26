@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { appStore } from '../../services/store';
+import { supabase } from '../../services/supabase';
 import { JobSkill } from '../../types';
 import { Briefcase, ArrowLeft, Plus, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react';
 
@@ -10,13 +11,58 @@ export const CreateJobPage: React.FC = () => {
   const { user } = useAuth();
   const [, setStoreRevision] = useState(0);
   const allSkills = appStore.getState().skills;
-  const companies = appStore.getState().companies;
+  const [companies, setCompanies] = useState(appStore.getState().companies.filter((company) => company.recruiter_id === user?.id));
+  const [companiesLoading, setCompaniesLoading] = useState(true);
+  const [companiesError, setCompaniesError] = useState('');
 
   useEffect(() => {
     const unsubscribe = appStore.subscribe(() => setStoreRevision((revision) => revision + 1));
     void appStore.syncFromSupabase();
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadOwnedCompanies = async () => {
+      if (!user) {
+        setCompanies([]);
+        setCompaniesLoading(false);
+        return;
+      }
+
+      setCompaniesLoading(true);
+      setCompaniesError('');
+      const { data: { user: authenticatedUser }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!authenticatedUser || authenticatedUser.id !== user.id) {
+        throw new Error('The active Supabase user does not match the recruiter profile. Sign in again.');
+      }
+
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('recruiter_id', authenticatedUser.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      if (active) setCompanies(data || []);
+    };
+
+    loadOwnedCompanies()
+      .catch((error: unknown) => {
+        const details = error && typeof error === 'object' ? error as { code?: string; message?: string; details?: string } : {};
+        const message = [details.code, details.message || (error instanceof Error ? error.message : String(error)), details.details]
+          .filter(Boolean)
+          .join(': ');
+        if (active) {
+          console.error('[CreateJobPage] Failed to load recruiter-owned companies:', error);
+          setCompaniesError(message);
+          setCompanies([]);
+        }
+      })
+      .finally(() => { if (active) setCompaniesLoading(false); });
+
+    return () => { active = false; };
+  }, [user?.id]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -80,8 +126,9 @@ export const CreateJobPage: React.FC = () => {
       setErrorMsg(`Skill weights must sum to precisely 100%. Currently: ${totalWeight}%`);
       return;
     }
-    if (!companies.some((company) => company.id === formData.company_id)) {
-      setErrorMsg('Add a company profile before publishing a job.');
+    const ownedCompany = companies.find((company) => company.id === formData.company_id && company.recruiter_id === user.id);
+    if (!ownedCompany) {
+      setErrorMsg('Select a company profile owned by your recruiter account before publishing a job.');
       return;
     }
     if (skillsConfig.length === 0) {
@@ -103,7 +150,7 @@ export const CreateJobPage: React.FC = () => {
         min_acceptable_score: sc.min_acceptable_score,
       }));
 
-      const targetCompany = companies.find((c) => c.id === formData.company_id);
+      const targetCompany = companies.find((company) => company.id === formData.company_id && company.recruiter_id === user.id);
       if (!targetCompany) throw new Error('Select a company profile before publishing this job.');
 
       const created = await appStore.createJob({
@@ -144,6 +191,7 @@ export const CreateJobPage: React.FC = () => {
             <AlertTriangle size={16} /> {errorMsg}
           </div>
         )}
+        {companiesError && <div role="alert" style={{ padding: '0.75rem 1rem', border: '1px solid var(--status-danger-border)', color: 'var(--status-danger)', marginBottom: '1rem' }}>Unable to load your company profiles: {companiesError}</div>}
 
         <div className="form-group">
           <label className="form-label">Job Title</label>
@@ -164,16 +212,18 @@ export const CreateJobPage: React.FC = () => {
             value={formData.company_id}
             onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
             className="form-select"
+            disabled={companiesLoading || companies.length === 0}
           >
+            <option value="">{companiesLoading ? 'Loading your companies…' : 'Select an owned company'}</option>
             {companies.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({c.industry})
               </option>
             ))}
           </select>
-          {companies.length === 0 && (
+          {!companiesLoading && !companiesError && companies.length === 0 && (
             <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.4rem' }}>
-              No company profile is available yet. Add one in Company settings before publishing a job.
+              No company profile is owned by this recruiter account. A legitimate company relationship is required before publishing jobs.
             </p>
           )}
         </div>
