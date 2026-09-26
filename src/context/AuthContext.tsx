@@ -6,6 +6,7 @@ interface AuthResponse {
   success: boolean;
   error?: string;
   role?: UserRole;
+  user?: Profile;
 }
 
 interface RegisterData {
@@ -318,7 +319,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setUser(finalProfile as Profile);
-      return { success: true, role: registerRole };
+      return { success: true, role: registerRole, user: finalProfile as Profile };
     } catch (err: unknown) {
       console.error('[AuthContext] Registration error:', err);
       const isNetwork = err instanceof TypeError || (err instanceof Error && err.message.toLowerCase().includes('fetch'));

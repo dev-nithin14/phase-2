@@ -1,6 +1,7 @@
 import { IntegrityEvent, IntegrityStatus, RiskLevel } from '../types';
 
 export interface MultiSignalIntegrityInput {
+  events?: IntegrityEvent[];
   tabSwitches?: number;
   fullscreenExits?: number;
   copyAttempts?: number;
@@ -12,18 +13,47 @@ export interface MultiSignalIntegrityInput {
   multipleFacesCount?: number;
   multipleFacesTotalSeconds?: number;
   phoneCameraStatus?: 'CONNECTED' | 'DISCONNECTED' | 'NOT_PAIRED';
+  phoneConnected?: boolean;
   phoneCameraDisconnected?: boolean;
   contextMenuAttempts?: number;
   devtoolsAttempts?: number;
   warningsCount?: number;
+  assessmentDurationMinutes?: number;
 }
 
 export interface MultiSignalIntegrityResult {
   status: IntegrityStatus;
   riskScore: number; // 0 - 100
+  risk_score: number;
   riskLevel: RiskLevel; // 'LOW RISK' | 'MEDIUM RISK' | 'HIGH RISK'
+  risk_level: RiskLevel;
   totalFlags: number;
   summaryRationale: string;
+  candidate_friendly_summary: string;
+  summary: {
+    tab_switches: number;
+    fullscreen_exits: number;
+    copy_attempts: number;
+    paste_attempts: number;
+    copy_paste_attempts: number;
+    camera_dropouts: number;
+    camera_interruptions: number;
+    face_absence_count: number;
+    face_absence_events: number;
+    multiple_faces_count: number;
+    multiple_faces_detected: boolean;
+    phone_camera_connected: boolean;
+    phone_camera_status: 'CONNECTED' | 'DISCONNECTED' | 'NOT_PAIRED';
+    warnings_count: number;
+    context_menu_attempts: number;
+    devtools_attempts: number;
+    total_flags: number;
+    status: IntegrityStatus;
+    risk_score: number;
+    risk_level: RiskLevel;
+    candidate_rationale: string;
+    [key: string]: any;
+  };
   signalsBreakdown: Array<{
     category: string;
     description: string;
@@ -38,18 +68,52 @@ export interface MultiSignalIntegrityResult {
  * Non-accusatory standard: Never brands candidates as cheaters; provides transparent evidence for recruiter review.
  */
 export function evaluateIntegrityStatus(input: MultiSignalIntegrityInput): MultiSignalIntegrityResult {
-  const tabSwitches = input.tabSwitches || 0;
-  const fullscreenExits = input.fullscreenExits || 0;
-  const copyAttempts = (input.copyAttempts || 0) + (input.cutAttempts || 0);
-  const pasteAttempts = input.pasteAttempts || 0;
-  const cameraDropouts = input.cameraDropouts || 0;
-  const faceAbsenceCount = input.faceAbsenceCount || 0;
-  const faceAbsenceTotalSeconds = input.faceAbsenceTotalSeconds || 0;
-  const multipleFacesCount = input.multipleFacesCount || 0;
-  const multipleFacesTotalSeconds = input.multipleFacesTotalSeconds || 0;
-  const contextMenuAttempts = input.contextMenuAttempts || 0;
-  const devtoolsAttempts = input.devtoolsAttempts || 0;
-  const phoneCameraDisconnected = Boolean(input.phoneCameraDisconnected || input.phoneCameraStatus === 'DISCONNECTED');
+  // If events list was passed, tally metrics automatically from events
+  const evts = input.events || [];
+  let evtTabSwitches = 0;
+  let evtFullscreenExits = 0;
+  let evtCopyAttempts = 0;
+  let evtPasteAttempts = 0;
+  let evtCutAttempts = 0;
+  let evtCameraDropouts = 0;
+  let evtFaceAbsence = 0;
+  let evtMultipleFaces = 0;
+  let evtContextMenu = 0;
+  let evtDevtools = 0;
+  let evtPhoneDisconnected = false;
+  let evtScreenShareStopped = 0;
+  let evtScreenCaptures = 0;
+
+  for (const e of evts) {
+    if (e.event_type === 'TAB_SWITCH') evtTabSwitches++;
+    else if (e.event_type === 'FULLSCREEN_EXIT') evtFullscreenExits++;
+    else if (e.event_type === 'COPY_ATTEMPT') evtCopyAttempts++;
+    else if (e.event_type === 'PASTE_ATTEMPT') evtPasteAttempts++;
+    else if (e.event_type === 'CUT_ATTEMPT') evtCutAttempts++;
+    else if (e.event_type === 'CAMERA_INTERRUPTED' || e.event_type === 'CAMERA_DISCONNECTED') evtCameraDropouts++;
+    else if (e.event_type === 'FACE_ABSENT' || e.event_type === 'NO_FACE') evtFaceAbsence++;
+    else if (e.event_type === 'MULTIPLE_FACES') evtMultipleFaces++;
+    else if (e.event_type === 'CONTEXT_MENU_ATTEMPT') evtContextMenu++;
+    else if (e.event_type === 'DEVTOOLS_SHORTCUT' || e.event_type === 'DEVTOOLS_SHORTCUT_ATTEMPT') evtDevtools++;
+    else if (e.event_type === 'PHONE_CAMERA_DISCONNECTED') evtPhoneDisconnected = true;
+    else if (e.event_type === 'SCREEN_SHARE_STOPPED') evtScreenShareStopped++;
+    else if (e.event_type === 'SCREENSHOT_CAPTURED') evtScreenCaptures++;
+  }
+
+  const tabSwitches = input.tabSwitches ?? evtTabSwitches;
+  const fullscreenExits = input.fullscreenExits ?? evtFullscreenExits;
+  const copyAttempts = (input.copyAttempts ?? evtCopyAttempts) + (input.cutAttempts ?? evtCutAttempts);
+  const pasteAttempts = input.pasteAttempts ?? evtPasteAttempts;
+  const cameraDropouts = input.cameraDropouts ?? evtCameraDropouts;
+  const faceAbsenceCount = input.faceAbsenceCount ?? evtFaceAbsence;
+  const faceAbsenceTotalSeconds = input.faceAbsenceTotalSeconds ?? (faceAbsenceCount * 3.5);
+  const multipleFacesCount = input.multipleFacesCount ?? evtMultipleFaces;
+  const multipleFacesTotalSeconds = input.multipleFacesTotalSeconds ?? (multipleFacesCount * 4);
+  const contextMenuAttempts = input.contextMenuAttempts ?? evtContextMenu;
+  const devtoolsAttempts = input.devtoolsAttempts ?? evtDevtools;
+  const phoneCameraDisconnected = input.phoneCameraDisconnected ?? (evtPhoneDisconnected || input.phoneCameraStatus === 'DISCONNECTED');
+  const phoneConnected = input.phoneConnected ?? (input.phoneCameraStatus === 'CONNECTED');
+  const warningsCount = input.warningsCount ?? (tabSwitches + fullscreenExits + multipleFacesCount);
 
   const signals: Array<{
     category: string;
@@ -105,6 +169,16 @@ export function evaluateIntegrityStatus(input: MultiSignalIntegrityInput): Multi
       description: 'Paired secondary phone camera disconnected during active assessment session',
       points: 12,
       severity: 'MEDIUM',
+    });
+  }
+
+  // 4b. Screen Sharing Interruption Signal
+  if (evtScreenShareStopped > 0) {
+    signals.push({
+      category: 'Screen Monitoring',
+      description: `Screen sharing permission was stopped or interrupted (${evtScreenShareStopped} event(s))`,
+      points: Math.min(25, evtScreenShareStopped * 8),
+      severity: evtScreenShareStopped >= 2 ? 'HIGH' : 'MEDIUM',
     });
   }
 
@@ -186,13 +260,42 @@ export function evaluateIntegrityStatus(input: MultiSignalIntegrityInput): Multi
   }
 
   const totalFlags = signals.length;
+  const candidate_friendly_summary = 'Assessment monitored under multi-signal integrity verification standards.';
+
+  const summary = {
+    tab_switches: tabSwitches,
+    fullscreen_exits: fullscreenExits,
+    copy_attempts: copyAttempts,
+    paste_attempts: pasteAttempts,
+    copy_paste_attempts: copyAttempts + pasteAttempts,
+    camera_dropouts: cameraDropouts,
+    camera_interruptions: cameraDropouts,
+    face_absence_count: faceAbsenceCount,
+    face_absence_events: faceAbsenceCount,
+    multiple_faces_count: multipleFacesCount,
+    multiple_faces_detected: multipleFacesCount > 0,
+    phone_camera_connected: phoneConnected,
+    phone_camera_status: phoneConnected ? ('CONNECTED' as const) : ('NOT_PAIRED' as const),
+    warnings_count: warningsCount,
+    context_menu_attempts: contextMenuAttempts,
+    devtools_attempts: devtoolsAttempts,
+    total_flags: totalFlags,
+    status,
+    risk_score: riskScore,
+    risk_level: riskLevel,
+    candidate_rationale: summaryRationale,
+  };
 
   return {
     status,
     riskScore,
+    risk_score: riskScore,
     riskLevel,
+    risk_level: riskLevel,
     totalFlags,
     summaryRationale,
+    candidate_friendly_summary,
+    summary,
     signalsBreakdown: signals,
   };
 }
@@ -219,8 +322,10 @@ export function createIntegrityEvent(
 export interface FormattedTimelineItem {
   id: string;
   timeFormatted: string;
+  time: string;
   title: string;
   description: string;
+  details?: string;
   severity: 'LOW' | 'MEDIUM' | 'HIGH';
   eventType: IntegrityEvent['event_type'];
 }
@@ -282,9 +387,31 @@ export function formatIntegrityTimeline(events: IntegrityEvent[] = []): Formatte
         title = 'Secondary Phone Camera Paired';
         description = 'Candidate phone connected successfully as external angle stream';
         break;
+      case 'PHONE_CAMERA_RECONNECTED':
+        title = 'Secondary Phone Camera Reconnected';
+        description = 'Paired phone camera stream resumed active telemetry';
+        break;
       case 'PHONE_CAMERA_DISCONNECTED':
         title = 'Secondary Phone Camera Disconnected';
         description = 'Paired phone camera stream lost connection';
+        break;
+      case 'SCREEN_SHARE_STARTED':
+        title = 'Screen Monitoring Activated';
+        description = 'Candidate granted legitimate browser screen-sharing permission';
+        break;
+      case 'SCREENSHOT_CAPTURED':
+        title = `Screen Evidence Captured (Capture #${event.metadata?.capture_number || 1})`;
+        description = event.metadata?.time_offset
+          ? `Periodic 5-minute screen evidence frame captured at ${event.metadata.time_offset}`
+          : 'Automated 5-minute periodic evidence frame captured';
+        break;
+      case 'SCREEN_SHARE_STOPPED':
+        title = 'Screen Sharing Interrupted';
+        description = 'Candidate stopped or revoked browser screen sharing';
+        break;
+      case 'SCREEN_SHARE_RESTORED':
+        title = 'Screen Sharing Restored';
+        description = 'Screen monitoring resumed after permission prompt';
         break;
       case 'PASTE_ATTEMPT':
         title = 'Paste Attempt';
@@ -319,13 +446,39 @@ export function formatIntegrityTimeline(events: IntegrityEvent[] = []): Formatte
         title = 'Periodic Evidence Snapshot';
         description = 'Lightweight integrity evidence frame captured';
         break;
+      case 'ASSESSMENT_CONTEXT_LEFT':
+        title = 'Assessment Context Left';
+        description = `Assessment window lost focus or visibility (Trigger: ${event.metadata?.trigger || 'Window blur / tab switch'})`;
+        break;
+      case 'ASSESSMENT_CONTEXT_RESTORED':
+        title = 'Assessment Context Restored';
+        description = 'Candidate returned to active assessment window';
+        break;
+      case 'SCREEN_EVIDENCE_ON_CONTEXT_EXIT':
+        title = 'Screen Evidence Captured on Context Exit';
+        description = `Automatic screen frame captured when candidate left assessment context (${event.metadata?.trigger || 'Context Exit'})`;
+        break;
+      case 'FULLSCREEN_EXIT_DURING_ASSESSMENT':
+        title = 'Exited Fullscreen During Assessment';
+        description = 'Candidate left enforced fullscreen workspace';
+        break;
+      case 'WINDOW_BLUR':
+        title = 'Window Focus Lost';
+        description = 'Candidate interacted outside assessment window';
+        break;
+      case 'WINDOW_FOCUS':
+        title = 'Window Focus Regained';
+        description = 'Assessment window regained active focus';
+        break;
     }
 
     return {
       id: event.id,
       timeFormatted: time,
+      time,
       title,
       description,
+      details: description,
       severity: event.severity,
       eventType: event.event_type,
     };

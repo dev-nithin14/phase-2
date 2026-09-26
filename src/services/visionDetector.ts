@@ -6,11 +6,15 @@
 
 export interface VisionDetectionResult {
   faceCount: number;
+  count: number;
+  detected: boolean;
   status: 'FACE_PRESENT' | 'FACE_ABSENT' | 'MULTIPLE_FACES';
   confidence: number;
   isObscured: boolean;
   snapshotDataUrl?: string;
 }
+
+export type FaceDetectionResult = VisionDetectionResult;
 
 let nativeDetector: any = null;
 if (typeof window !== 'undefined' && 'FaceDetector' in window) {
@@ -28,6 +32,8 @@ export async function detectFacesInVideo(
   if (!video || video.readyState < 2 || video.videoWidth === 0) {
     return {
       faceCount: 0,
+      count: 0,
+      detected: false,
       status: 'FACE_ABSENT',
       confidence: 0,
       isObscured: true,
@@ -50,6 +56,8 @@ export async function detectFacesInVideo(
 
       return {
         faceCount,
+        count: faceCount,
+        detected: faceCount > 0,
         status,
         confidence: faceCount > 0 ? 0.95 : 0.9,
         isObscured: false,
@@ -76,7 +84,7 @@ function analyzeVideoFrameHeuristic(
   canvas.height = height;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) {
-    return { faceCount: 1, status: 'FACE_PRESENT', confidence: 0.5, isObscured: false };
+    return { faceCount: 1, count: 1, detected: true, status: 'FACE_PRESENT', confidence: 0.5, isObscured: false };
   }
 
   ctx.drawImage(video, 0, 0, width, height);
@@ -127,6 +135,8 @@ function analyzeVideoFrameHeuristic(
   if (isObscured || skinRatio < 0.025) {
     return {
       faceCount: 0,
+      count: 0,
+      detected: false,
       status: 'FACE_ABSENT',
       confidence: 0.85,
       isObscured,
@@ -164,6 +174,8 @@ function analyzeVideoFrameHeuristic(
   if (peaks.length >= 2 && skinRatio > 0.08) {
     return {
       faceCount: peaks.length,
+      count: peaks.length,
+      detected: true,
       status: 'MULTIPLE_FACES',
       confidence: 0.8,
       isObscured: false,
@@ -173,6 +185,8 @@ function analyzeVideoFrameHeuristic(
 
   return {
     faceCount: 1,
+    count: 1,
+    detected: true,
     status: 'FACE_PRESENT',
     confidence: 0.9,
     isObscured: false,
@@ -197,3 +211,5 @@ export function extractCanvasSnapshot(
     return '';
   }
 }
+
+export const captureVideoSnapshot = extractCanvasSnapshot;

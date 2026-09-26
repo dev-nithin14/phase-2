@@ -21,6 +21,9 @@ import {
   AlertCircle,
   ExternalLink,
   ChevronRight,
+  ChevronLeft,
+  Download,
+  Monitor,
 } from 'lucide-react';
 
 interface ResultAttempt extends Omit<AssessmentAttempt, 'candidate'> {
@@ -36,10 +39,12 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Selected attempt for timeline or evidence modal
+  // Selected attempt for modals
   const [selectedAttemptForTimeline, setSelectedAttemptForTimeline] = useState<ResultAttempt | null>(null);
   const [selectedAttemptForEvidence, setSelectedAttemptForEvidence] = useState<ResultAttempt | null>(null);
-  const [evidenceTab, setEvidenceTab] = useState<'camera' | 'browser' | 'phone' | 'questions' | 'decision'>('camera');
+  const [selectedAttemptForScreenEvidence, setSelectedAttemptForScreenEvidence] = useState<ResultAttempt | null>(null);
+  const [activeScreenIndex, setActiveScreenIndex] = useState(0);
+  const [evidenceTab, setEvidenceTab] = useState<'camera' | 'browser' | 'context' | 'phone' | 'questions' | 'decision'>('camera');
   const [attemptEvents, setAttemptEvents] = useState<IntegrityEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [recruiterNotes, setRecruiterNotes] = useState<Record<string, string>>({});
@@ -259,7 +264,7 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Multi-Signal Metrics Grid (User Request Section 23) */}
+              {/* Multi-Signal Metrics Grid (User Request Specification) */}
               <div
                 style={{
                   display: 'grid',
@@ -273,9 +278,23 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Warnings</div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: (summary.warnings_count || 0) > 0 ? '#f59e0b' : '#fff' }}>
-                    {summary.warnings_count || 0}
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Primary Camera</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--status-verified)' }}>
+                    ✓ Connected
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Phone Camera</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: phoneConnected ? 'var(--status-verified)' : 'var(--text-muted)' }}>
+                    {phoneConnected ? '✓ Connected' : '○ Not Paired'}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Screen Monitoring</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: summary.screen_monitoring_active !== false ? 'var(--status-verified)' : 'var(--status-danger)' }}>
+                    {summary.screen_monitoring_active !== false ? '✓ Active' : '○ Stopped'}
                   </div>
                 </div>
 
@@ -296,28 +315,42 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
                 <div>
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Face Absence</div>
                   <div style={{ fontSize: '1.15rem', fontWeight: 800 }}>
-                    {summary.face_absence_events || 0} <span style={{ fontSize: '0.75rem', fontWeight: 400 }}>events</span>
+                    {summary.face_absence_events || summary.face_absence_count || 0}
                   </div>
                 </div>
 
                 <div>
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Multiple Faces</div>
                   <div style={{ fontSize: '1.15rem', fontWeight: 800, color: summary.multiple_faces_detected ? 'var(--status-danger)' : '#fff' }}>
-                    {summary.multiple_faces_detected ? 'Detected (Flag)' : '0'}
+                    {summary.multiple_faces_detected ? '1 (Flag)' : '0'}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Phone Camera</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: phoneConnected ? 'var(--status-verified)' : 'var(--text-muted)' }}>
-                    {phoneConnected ? 'CONNECTED' : 'NOT PAIRED'}
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Duration</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Copy/Paste</div>
                   <div style={{ fontSize: '1.15rem', fontWeight: 800 }}>
-                    {durationString}
+                    {summary.copy_paste_attempts || (summary.copy_attempts || 0) + (summary.paste_attempts || 0)}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Screen Evidence</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8' }}>
+                    {(summary.screen_evidence || []).length} captures
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Context Interruptions</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: (summary.context_exit_count || 0) > 0 ? '#f59e0b' : '#fff' }}>
+                    {summary.context_exit_count || 0}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Context-Exit Evidence</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f59e0b' }}>
+                    {(summary.context_exit_evidence || []).length} captures
                   </div>
                 </div>
               </div>
@@ -349,9 +382,19 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Action Buttons: View Integrity Timeline & Review Evidence */}
+              {/* Action Buttons: VIEW SCREEN EVIDENCE, VIEW INTEGRITY TIMELINE, REVIEW ALL EVIDENCE */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 14 }}>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setSelectedAttemptForScreenEvidence(attempt);
+                      setActiveScreenIndex(0);
+                    }}
+                  >
+                    <Monitor size={14} /> View Screen Evidence
+                  </button>
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
@@ -364,7 +407,7 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
                     className="btn btn-primary btn-sm"
                     onClick={() => void openEvidenceModal(attempt)}
                   >
-                    <ShieldCheck size={14} /> Review Evidence & Audit
+                    <ShieldCheck size={14} /> Review All Evidence
                   </button>
                 </div>
 
@@ -538,6 +581,13 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
               </button>
               <button
                 type="button"
+                className={`btn btn-sm ${evidenceTab === 'context' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setEvidenceTab('context')}
+              >
+                <AlertTriangle size={14} /> Context & Exit Evidence
+              </button>
+              <button
+                type="button"
                 className={`btn btn-sm ${evidenceTab === 'phone' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setEvidenceTab('phone')}
               >
@@ -598,7 +648,7 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
                     <div>
                       <h5 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 8 }}>Automated Evidence Snapshots</h5>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                        {selectedAttemptForEvidence.integrity_summary.evidence_snapshots.map((snap, idx) => (
+                        {selectedAttemptForEvidence.integrity_summary.evidence_snapshots.map((snap: string, idx: number) => (
                           <div key={idx} style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
                             <img src={snap} alt={`Evidence snapshot ${idx + 1}`} style={{ width: 180, height: 135, objectFit: 'cover' }} />
                             <div style={{ fontSize: '0.7rem', padding: '4px 6px', background: 'rgba(0,0,0,0.8)', color: '#fff' }}>
@@ -658,6 +708,94 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
                         </div>
                       ))}
                   </div>
+                </div>
+              )}
+
+              {/* TAB 2.5: Context & Exit Evidence */}
+              {evidenceTab === 'context' && (
+                <div>
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 8 }}>
+                    Assessment Context & Exit Interruption Evidence
+                  </h4>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 14 }}>
+                    Automated evidence captured when the candidate's browser window lost visibility, focus, or exited fullscreen.
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 18 }}>
+                    <div className="card" style={{ background: 'var(--bg-surface)' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Context Exits</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: (selectedAttemptForEvidence.integrity_summary?.context_exit_count || 0) > 0 ? '#f59e0b' : 'var(--status-verified)' }}>
+                        {selectedAttemptForEvidence.integrity_summary?.context_exit_count || 0}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Window blur / tab unfocus events</div>
+                    </div>
+                    <div className="card" style={{ background: 'var(--bg-surface)' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Exit Evidence Frames</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#38bdf8' }}>
+                        {(selectedAttemptForEvidence.integrity_summary?.context_exit_evidence || []).length}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Screen frames captured on exit</div>
+                    </div>
+                  </div>
+
+                  {selectedAttemptForEvidence.integrity_summary?.context_exit_evidence &&
+                  selectedAttemptForEvidence.integrity_summary.context_exit_evidence.length > 0 ? (
+                    <div>
+                      <h5 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 10 }}>Captured Context-Exit Frames</h5>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+                        {selectedAttemptForEvidence.integrity_summary.context_exit_evidence.map((ctxSnap: any, idx: number) => (
+                          <div
+                            key={idx}
+                            style={{
+                              background: 'var(--bg-surface)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: 8,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {ctxSnap.image_data ? (
+                              <img
+                                src={ctxSnap.image_data}
+                                alt={`Context Exit Frame ${idx + 1}`}
+                                style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block' }}
+                              />
+                            ) : (
+                              <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                No screen stream active on exit
+                              </div>
+                            )}
+                            <div style={{ padding: 10, fontSize: '0.8rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
+                                  {ctxSnap.trigger || 'CONTEXT_EXIT'}
+                                </span>
+                                <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                                  {ctxSnap.elapsed_seconds ? `⏱ ${Math.floor(ctxSnap.elapsed_seconds / 60)}:${String(ctxSnap.elapsed_seconds % 60).padStart(2, '0')}` : ''}
+                                </span>
+                              </div>
+                              <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                                {new Date(ctxSnap.timestamp).toLocaleTimeString()}
+                              </div>
+                              {ctxSnap.image_data && (
+                                <a
+                                  href={ctxSnap.image_data}
+                                  download={`context-exit-evidence-${idx + 1}.jpg`}
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ marginTop: 8, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.75rem' }}
+                                >
+                                  <Download size={12} /> Download Frame
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', background: 'var(--bg-surface)', padding: 14, borderRadius: 'var(--radius-sm)' }}>
+                      No context-exit interruptions or captured frames recorded for this session. Candidate maintained active focus.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -750,6 +888,304 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL 3: Recruiter Screen Evidence Viewer Modal */}
+      {selectedAttemptForScreenEvidence && (() => {
+        const captures = selectedAttemptForScreenEvidence.integrity_summary?.screen_evidence || [];
+        const hasCaptures = captures.length > 0;
+        const safeIndex = Math.min(Math.max(0, activeScreenIndex), Math.max(0, captures.length - 1));
+        const currentCapture = hasCaptures ? captures[safeIndex] : null;
+        const interruptions = selectedAttemptForScreenEvidence.integrity_summary?.screen_interruptions || 0;
+
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.88)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: 16,
+            }}
+          >
+            <div
+              className="card"
+              style={{
+                maxWidth: 1050,
+                width: '100%',
+                maxHeight: '94vh',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '24px',
+                background: 'var(--bg-card, #0f172a)',
+                border: '1px solid var(--border-subtle, #1e293b)',
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 12 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span className="badge badge-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      <Monitor size={12} /> Periodic Screen Evidence
+                    </span>
+                    <span className="badge badge-neutral" style={{ fontSize: '0.75rem' }}>
+                      {captures.length} Capture{captures.length === 1 ? '' : 's'} (Every 5 Mins)
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: '1.3rem', fontWeight: 800 }}>
+                    {selectedAttemptForScreenEvidence.candidate?.full_name || 'Candidate'} · {assessment?.title || 'Assessment'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAttemptForScreenEvidence(null)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}
+                  aria-label="Close"
+                >
+                  <X size={22} />
+                </button>
+              </div>
+
+              {/* Warning Banner if screen share was interrupted */}
+              {interruptions > 0 && (
+                <div
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: 'var(--radius-sm, 6px)',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    marginBottom: 16,
+                    color: '#f87171',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+                  <div>
+                    <strong>Screen Sharing Disrupted:</strong> Candidate interrupted or minimized their shared screen {interruptions} time{interruptions === 1 ? '' : 's'}. The candidate was prompted with a mandatory resume dialog before continuing.
+                  </div>
+                </div>
+              )}
+
+              {/* Body */}
+              {!hasCaptures ? (
+                <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-surface, #1e293b22)', borderRadius: 8 }}>
+                  <Monitor size={48} style={{ opacity: 0.35, marginBottom: 12 }} />
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary, #fff)', marginBottom: 6 }}>
+                    No Screen Evidence Captured
+                  </h4>
+                  <p style={{ maxWidth: 480, margin: '0 auto', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                    Screen sharing evidence was not recorded for this session. This may occur if screen sharing permissions were declined by the candidate, not supported by the browser, or if the assessment was submitted prior to the 5-minute capture checkpoint.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1, minHeight: 0 }}>
+                  {/* Thumbnail Strip */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 10,
+                      overflowX: 'auto',
+                      paddingBottom: 8,
+                      borderBottom: '1px solid var(--border-subtle, #334155)',
+                    }}
+                  >
+                    {captures.map((capture, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveScreenIndex(idx)}
+                        style={{
+                          background: safeIndex === idx ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-surface, #1e293b)',
+                          border: safeIndex === idx ? '2px solid var(--primary, #3b82f6)' : '1px solid var(--border-subtle, #334155)',
+                          borderRadius: 6,
+                          padding: 4,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 4,
+                          flexShrink: 0,
+                          width: 110,
+                          textAlign: 'left',
+                        }}
+                      >
+                        <img
+                          src={capture.image_data}
+                          alt={`Thumbnail ${idx + 1}`}
+                          style={{ width: '100%', height: 60, objectFit: 'cover', borderRadius: 4 }}
+                        />
+                        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: safeIndex === idx ? 'var(--primary, #60a5fa)' : 'var(--text-primary, #cbd5e1)' }}>
+                          #{capture.capture_number} · {capture.time_offset_formatted}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Main Large Viewer Area */}
+                  {currentCapture && (
+                    <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
+                      {/* Image Viewer */}
+                      <div
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#040711',
+                          borderRadius: 8,
+                          position: 'relative',
+                          overflow: 'hidden',
+                          border: '1px solid var(--border-subtle, #334155)',
+                        }}
+                      >
+                        <img
+                          src={currentCapture.image_data}
+                          alt={`Screen capture ${currentCapture.capture_number}`}
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '48vh',
+                            objectFit: 'contain',
+                            display: 'block',
+                          }}
+                        />
+
+                        {/* Navigation Overlay Arrows */}
+                        {safeIndex > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveScreenIndex(safeIndex - 1)}
+                            style={{
+                              position: 'absolute',
+                              left: 12,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'rgba(15, 23, 42, 0.75)',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              color: '#fff',
+                              borderRadius: '50%',
+                              width: 36,
+                              height: 36,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                            }}
+                            title="Previous Capture"
+                          >
+                            <ChevronLeft size={20} />
+                          </button>
+                        )}
+                        {safeIndex < captures.length - 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveScreenIndex(safeIndex + 1)}
+                            style={{
+                              position: 'absolute',
+                              right: 12,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'rgba(15, 23, 42, 0.75)',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              color: '#fff',
+                              borderRadius: '50%',
+                              width: 36,
+                              height: 36,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                            }}
+                            title="Next Capture"
+                          >
+                            <ChevronRight size={20} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Metadata Details Sidebar */}
+                      <div
+                        style={{
+                          width: 250,
+                          flexShrink: 0,
+                          background: 'var(--bg-surface, #1e293b55)',
+                          borderRadius: 8,
+                          padding: 14,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          border: '1px solid var(--border-subtle, #334155)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 6 }}>
+                            Capture Metadata
+                          </h4>
+                          <div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Index</div>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 700 }}>
+                              Capture #{currentCapture.capture_number} of {captures.length}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Session Offset</div>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary, #60a5fa)', fontFamily: 'monospace' }}>
+                              ⏱ {currentCapture.time_offset_formatted}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>System Timestamp</div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              {new Date(currentCapture.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Trigger Source</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>5-Minute Periodic Checkpoint</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Status</div>
+                            <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                              Verified Capture
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop: 16 }}>
+                          <a
+                            href={currentCapture.image_data}
+                            download={`screen-evidence-${selectedAttemptForScreenEvidence.candidate?.full_name || 'candidate'}-capture-${currentCapture.capture_number}.jpg`}
+                            className="btn btn-secondary btn-sm"
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                          >
+                            <Download size={14} /> Download Frame
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Modal Footer */}
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setSelectedAttemptForScreenEvidence(null)}
+                >
+                  Close Viewer
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </main>
   );
 };

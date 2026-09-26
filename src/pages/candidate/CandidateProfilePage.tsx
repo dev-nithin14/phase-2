@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { User, Save, CheckCircle, GitBranch, Globe, Phone, MapPin } from 'lucide-react';
+import { updateReferralMilestone } from '../../services/referralService';
 
 export const CandidateProfilePage: React.FC = () => {
   const { user, updateCurrentUser } = useAuth();
@@ -30,6 +31,7 @@ export const CandidateProfilePage: React.FC = () => {
       ...formData,
       experience_years: Number(formData.experience_years),
     });
+    void updateReferralMilestone(user.id, 'PROFILE_COMPLETED');
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };

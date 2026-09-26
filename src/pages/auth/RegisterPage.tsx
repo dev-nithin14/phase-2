@@ -1,18 +1,22 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '../../types';
-import { ShieldCheck, Mail, ArrowRight, User, Building2, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Mail, ArrowRight, User, Building2, Lock, AlertCircle, CheckCircle2, Gift } from 'lucide-react';
+import { recordReferralSignup } from '../../services/referralService';
 
 export const RegisterPage: React.FC = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const refFromUrl = searchParams.get('ref') || searchParams.get('referral') || '';
 
   const [role, setRole] = useState<UserRole>('JOB_SEEKER');
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState(refFromUrl);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -49,6 +53,13 @@ export const RegisterPage: React.FC = () => {
       });
 
       if (res.success) {
+        if (referralCode.trim() && (res as any).user?.id) {
+          try {
+            await recordReferralSignup(referralCode.trim(), (res as any).user.id);
+          } catch (refErr) {
+            console.warn('Could not record referral:', refErr);
+          }
+        }
         if (res.role === 'RECRUITER') {
           navigate('/recruiter/dashboard', { replace: true });
         } else if (res.role === 'ADMIN') {
@@ -256,6 +267,38 @@ export const RegisterPage: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="form-input"
                 style={{ paddingLeft: '2.4rem' }}
+              />
+            </div>
+          </div>
+
+          {/* Referral Code (Optional / From Link) */}
+          <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+            <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Referral Code (Optional)</span>
+              {referralCode && (
+                <span className="badge badge-accent" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                  ✓ Referral Applied
+                </span>
+              )}
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Gift
+                size={16}
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '12px',
+                  transform: 'translateY(-50%)',
+                  color: referralCode ? 'var(--accent-primary)' : 'var(--text-muted)',
+                }}
+              />
+              <input
+                type="text"
+                placeholder="e.g. SAM-7X29K"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                className="form-input"
+                style={{ paddingLeft: '2.4rem', textTransform: 'uppercase', letterSpacing: '1px' }}
               />
             </div>
           </div>

@@ -325,9 +325,23 @@ export interface IntegrityEvent {
     | 'CAMERA_DISCONNECTED'
     | 'PHONE_CAMERA_CONNECTED'
     | 'PHONE_CAMERA_DISCONNECTED'
+    | 'PHONE_CAMERA_RECONNECTED'
+    | 'SCREEN_SHARE_STARTED'
+    | 'SCREENSHOT_CAPTURED'
+    | 'SCREEN_SHARE_STOPPED'
+    | 'SCREEN_SHARE_RESTORED'
+    | 'ASSESSMENT_CONTEXT_LEFT'
+    | 'ASSESSMENT_CONTEXT_RESTORED'
+    | 'FULLSCREEN_EXIT_DURING_ASSESSMENT'
+    | 'SCREEN_EVIDENCE_ON_CONTEXT_EXIT'
     | 'CONTEXT_MENU_ATTEMPT'
+    | 'DEVTOOLS_SHORTCUT'
     | 'DEVTOOLS_SHORTCUT_ATTEMPT'
     | 'SCREEN_SNAPSHOT_CAPTURED'
+    | 'TAB_RESTORED'
+    | 'FULLSCREEN_ENTER'
+    | 'WINDOW_BLUR'
+    | 'WINDOW_FOCUS'
     | 'QUESTION_OPENED'
     | 'QUESTION_ANSWERED'
     | 'QUESTION_CHANGED'
@@ -343,6 +357,34 @@ export interface IntegrityEvent {
   severity: 'LOW' | 'MEDIUM' | 'HIGH';
   metadata?: Record<string, unknown>;
   timestamp: string;
+}
+
+export interface ScreenEvidenceCapture {
+  attempt_id: string;
+  candidate_id: string;
+  assessment_id: string;
+  capture_number: number;
+  timestamp: string;
+  time_offset_formatted: string;
+  event_type: 'SCREENSHOT_CAPTURED';
+  image_data: string;
+}
+
+export interface ContextExitEvidence {
+  attempt_id: string;
+  candidate_id: string;
+  assessment_id: string;
+  timestamp: string;
+  elapsed_seconds: number;
+  trigger:
+    | 'VISIBILITY_CHANGE'
+    | 'WINDOW_BLUR'
+    | 'FULLSCREEN_EXIT'
+    | 'TAB_SWITCH'
+    | 'SCREEN_SHARE_INTERRUPTION';
+  evidence_reference?: string;
+  image_data?: string;
+  event_type: 'SCREEN_EVIDENCE_ON_CONTEXT_EXIT';
 }
 
 export interface ScoreBreakdown {
@@ -377,18 +419,31 @@ export interface AssessmentAttempt {
     fullscreen_exits: number;
     copy_attempts: number;
     paste_attempts: number;
+    copy_paste_attempts?: number;
     camera_dropouts: number;
+    camera_interruptions?: number;
     total_flags: number;
     status: IntegrityStatus;
     face_absence_count?: number;
+    face_absence_events?: number;
     multiple_faces_count?: number;
+    multiple_faces_detected?: boolean;
     phone_camera_status?: 'CONNECTED' | 'DISCONNECTED' | 'NOT_PAIRED';
+    phone_camera_connected?: boolean;
     warnings_count?: number;
     context_menu_attempts?: number;
     devtools_attempts?: number;
     risk_score?: number;
+    integrity_risk_score?: number;
     risk_level?: RiskLevel;
+    candidate_rationale?: string;
+    evidence_snapshots?: string[];
+    screen_evidence?: ScreenEvidenceCapture[];
+    screen_monitoring_active?: boolean;
+    context_exit_count?: number;
+    context_exit_evidence?: ContextExitEvidence[];
     timeline_summary?: string;
+    [key: string]: any;
   };
   technical_score?: number;
   score_breakdown?: ScoreBreakdown & {
@@ -449,3 +504,93 @@ export interface SkillPassport {
     integrity_status: IntegrityStatus;
   }>;
 }
+
+// ----------------------------------------------------
+// Candidate Referral System Types
+// ----------------------------------------------------
+export type ReferralStatus =
+  | 'INVITED'
+  | 'SIGNED_UP'
+  | 'PROFILE_COMPLETED'
+  | 'ASSESSMENT_COMPLETED'
+  | 'APPLIED'
+  | 'HIRED';
+
+export interface Referral {
+  id: string;
+  referrer_user_id: string;
+  referral_code: string;
+  referred_user_id?: string | null;
+  referred_email?: string | null;
+  status: ReferralStatus;
+  created_at: string;
+  signup_timestamp?: string | null;
+  profile_completed_at?: string | null;
+  assessment_completed_at?: string | null;
+  applied_at?: string | null;
+  hired_at?: string | null;
+  referred_user?: {
+    id: string;
+    full_name: string;
+    email: string;
+  };
+}
+
+export interface ReferralStats {
+  invited: number;
+  joined: number;
+  completed_profile: number;
+  completed_assessment: number;
+  successful_applications: number;
+}
+
+// ----------------------------------------------------
+// Job Discovery & Aggregation Engine Types
+// ----------------------------------------------------
+export interface NormalizedJob {
+  id: string;
+  source: string; // 'adzuna' | 'employer' | 'partner'
+  source_job_id: string;
+  title: string;
+  company_name: string;
+  location: string;
+  description: string;
+  salary_min?: number;
+  salary_max?: number;
+  contract_type?: string; // 'full_time' | 'part_time' | 'contract' | 'permanent'
+  work_mode?: string; // 'remote' | 'hybrid' | 'on_site'
+  posted_at?: string;
+  apply_url: string;
+  source_logo?: string;
+  required_skills?: string[];
+  match_percentage?: number;
+  match_reasons?: string[];
+  missing_skills?: string[];
+}
+
+export interface JobSearchParams {
+  role?: string;
+  location?: string;
+  skills?: string[];
+  experience?: string;
+  salary_min?: number;
+  salary_max?: number;
+  work_mode?: string;
+  page?: number;
+  results_per_page?: number;
+}
+
+export interface JobSourceAdapter {
+  sourceName: string;
+  searchJobs(params: JobSearchParams): Promise<NormalizedJob[]>;
+}
+
+export interface SavedJob {
+  id: string;
+  candidate_id: string;
+  job_id: string;
+  source: string;
+  job_data: NormalizedJob;
+  saved_at: string;
+}
+

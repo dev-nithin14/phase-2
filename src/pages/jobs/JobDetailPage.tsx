@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import { Job } from '../../types';
+import { updateReferralMilestone } from '../../services/referralService';
 
 export const JobDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -83,6 +84,7 @@ export const JobDetailPage: React.FC = () => {
       return;
     }
     appStore.applyToJob(job.id, user.id);
+    void updateReferralMilestone(user.id, 'APPLIED');
     setApplied(true);
   };
 

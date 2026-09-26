@@ -67,7 +67,7 @@ const UnsupportedRoleRoute: React.FC = () => {
 
 const ConditionalFooter: React.FC = () => {
   const { pathname } = useLocation();
-  if (pathname === '/login' || pathname === '/register' || pathname === '/verify-otp' || pathname === '/assessment/phone-camera') return null;
+  if (pathname === '/login' || pathname === '/register' || pathname === '/signup' || pathname === '/verify-otp' || pathname === '/assessment/phone-camera') return null;
   return <Footer />;
 };
 
@@ -82,6 +82,7 @@ export const App: React.FC = () => {
             <Route path="/unsupported-role" element={<UnsupportedRoleRoute />} />
             <Route path="/login" element={<AuthEntry><LoginPage /></AuthEntry>} />
             <Route path="/register" element={<AuthEntry><RegisterPage /></AuthEntry>} />
+            <Route path="/signup" element={<AuthEntry><RegisterPage /></AuthEntry>} />
             <Route path="/verify-otp" element={<AuthEntry><LoginPage /></AuthEntry>} />
             <Route path="/assessment/phone-camera" element={<PhoneCameraPage />} />
             <Route path="/admin/dashboard" element={<ProtectedRoute role="ADMIN"><AdminDashboard /></ProtectedRoute>} />
