@@ -113,6 +113,8 @@ export const App: React.FC = () => {
             <Route path="/recruiter/candidates/:id" element={<ProtectedRoute role="RECRUITER"><CandidateDetailViewPage /></ProtectedRoute>} />
             <Route path="/recruiter/assessments" element={<ProtectedRoute role="RECRUITER"><RecruiterAssessmentBuilderPage /></ProtectedRoute>} />
             <Route path="/recruiter/assessments/new" element={<ProtectedRoute role="RECRUITER"><RecruiterAssessmentBuilderPage /></ProtectedRoute>} />
+            <Route path="/recruiter/assessments/create" element={<ProtectedRoute role="RECRUITER"><RecruiterAssessmentBuilderPage /></ProtectedRoute>} />
+            <Route path="/recruiter/assessments/ai" element={<ProtectedRoute role="RECRUITER"><RecruiterAssessmentBuilderPage /></ProtectedRoute>} />
             <Route path="/recruiter/assessments/:id/results" element={<ProtectedRoute role="RECRUITER"><RecruiterAssessmentResultsPage /></ProtectedRoute>} />
             <Route path="/recruiter/assessments/:id" element={<ProtectedRoute role="RECRUITER"><RecruiterAssessmentBuilderPage /></ProtectedRoute>} />
             <Route path="/recruiter/applications" element={<ProtectedRoute role="RECRUITER"><RecruiterDashboard /></ProtectedRoute>} />

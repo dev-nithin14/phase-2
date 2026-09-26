@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabase';
 import {
@@ -59,7 +59,9 @@ const errorText = (error: unknown, operation: string) => {
 export const RecruiterAssessmentBuilderPage: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
-  const routeJobApplied = useRef(false);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const routeJobApplied = useRef<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
@@ -68,9 +70,8 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
   const [assessmentError, setAssessmentError] = useState('');
   const [skillsError, setSkillsError] = useState('');
   const [actionError, setActionError] = useState('');
-  const [selectedJobId, setSelectedJobId] = useState('');
-  const [method, setMethod] = useState<'MANUAL' | 'AI' | null>(null);
-  const [aiUnavailable, setAiUnavailable] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState(() => searchParams.get('job') || '');
+  const [selectedAgent, setSelectedAgent] = useState('technical');
   const [draft, setDraft] = useState<Assessment | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -112,20 +113,34 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    if (routeJobApplied.current) return;
-    const jobId = (location.state as { jobId?: string } | null)?.jobId;
+    const routeJobId = searchParams.get('job');
+    const stateJobId = (location.state as { jobId?: string } | null)?.jobId;
+    const jobId = routeJobId || stateJobId;
     if (!jobId) return;
     const job = jobs.find((item) => item.id === jobId);
     if (!job) return;
-    routeJobApplied.current = true;
+    const routeKey = `${location.pathname}:${jobId}`;
+    if (routeJobApplied.current === routeKey) return;
+    routeJobApplied.current = routeKey;
     setSelectedJobId(jobId);
     setTitle((currentTitle) => currentTitle || `${job.title} Technical Assessment`);
-  }, [location.state, jobs]);
+    if (location.pathname.endsWith('/create')) setTitle(`${job.title} Technical Assessment`);
+  }, [location.pathname, location.state, jobs, searchParams]);
+
+  const selectedJobRoute = (flow: 'create' | 'ai') => `/recruiter/assessments/${flow}?job=${encodeURIComponent(selectedJobId)}`;
+  const isManualRoute = location.pathname.endsWith('/create');
+  const isAgentRoute = location.pathname.endsWith('/ai');
 
   const selectedJob = jobs.find((job) => job.id === selectedJobId);
   const selectedJobSkills = selectedJob?.skills?.map((jobSkill) => jobSkill.skill).filter((skill): skill is Skill => Boolean(skill)) || skills;
   const questions = draft?.questions || [];
   const totalMarks = questions.reduce((total, question) => total + Number(question.points), 0);
+
+  useEffect(() => {
+    const requestedJobId = searchParams.get('job');
+    if (!requestedJobId || loading || jobError || selectedJob) return;
+    setActionError('The selected job was not returned by the authenticated recruiter jobs query. Confirm that the job belongs to this recruiter account.');
+  }, [searchParams, loading, jobError, selectedJob]);
 
   const beginDraft = async () => {
     if (!user || !selectedJob || !title.trim()) {
@@ -178,11 +193,11 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
       setActionError(errorText(loadError, 'draft questions'));
       return;
     }
+    if (assessment.job_id) navigate(`/recruiter/assessments/create?job=${encodeURIComponent(assessment.job_id)}`);
     setSelectedJobId(assessment.job_id || '');
     setTitle(assessment.title);
     setDescription(assessment.description || '');
     setDuration(assessment.duration_minutes);
-    setMethod('MANUAL');
     setQuestionDraft(blankQuestion(assessment.questions?.length || 0));
     setReview(false);
   };
@@ -262,11 +277,11 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
     try {
       await publishAssessment(draft.id);
       setDraft(null);
-      setMethod(null);
       setReview(false);
       setQuestionDraft(null);
       setTitle('');
       setDescription('');
+      navigate('/recruiter/assessments');
       await refresh();
     } catch (publishError) {
       setActionError(errorText(publishError, 'publishing the assessment'));
@@ -292,56 +307,64 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
         <p>AI prepares. Recruiter decides. Candidate proves.</p>
       </header>
 
+      {(isManualRoute || isAgentRoute) && <Link to="/recruiter/assessments" className="nav-link" style={{ marginBottom: 16 }}>Back to job selection</Link>}
+
       {[jobError, assessmentError, skillsError, actionError].filter(Boolean).map((message) => <div key={message} role="alert" className="card" style={{ borderColor: 'var(--status-danger)', marginBottom: 16 }}>{message}</div>)}
 
       {!draft && (
         <>
           <section className="card" style={{ marginBottom: 20 }}>
             <label className="form-label" htmlFor="assessment-job">Select a job you own</label>
-            <select id="assessment-job" className="form-select" value={selectedJobId} onChange={(event) => {
+            <select id="assessment-job" className="form-select" value={selectedJobId} disabled={isManualRoute || isAgentRoute} onChange={(event) => {
               const job = jobs.find((item) => item.id === event.target.value);
               setSelectedJobId(event.target.value);
               if (job && !title) setTitle(`${job.title} Technical Assessment`);
             }}>
               <option value="">Choose a job</option>
-              {jobs.map((job) => <option key={job.id} value={job.id}>{job.title} · {job.company?.name || 'Company'}</option>)}
+              {jobs.map((job) => <option key={job.id} value={job.id}>{job.title} · {job.company?.name || 'Company'} · {job.status}</option>)}
             </select>
+            {!selectedJob && !jobError && <p style={{ marginTop: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Select a job to continue.</p>}
             {!jobError && jobs.length === 0 && <p style={{ marginTop: 8 }}>No recruiter-owned jobs found. Create a job before creating its assessment.</p>}
             {selectedJob && <div style={{ marginTop: 10 }}><p><strong>{selectedJob.title}</strong> · {selectedJob.company?.name || 'Company'} · Job ID: {selectedJob.id}</p><p>{selectedJob.description}</p><p>Required skills: {selectedJob.skills?.map((item) => item.skill?.name).filter(Boolean).join(', ') || 'No job skills attached'}</p></div>}
           </section>
 
-          {!method && (
+          {!isManualRoute && !isAgentRoute && (
             <section>
               <h2 style={{ fontSize: '1.2rem', marginBottom: 12 }}>How would you like to prepare this assessment?</h2>
               <div className="grid-2">
                 <article className="card">
                   <h3>Build manually</h3>
                   <p>Create and review every question yourself.</p>
-                  <button className="btn btn-primary" disabled={!selectedJob} onClick={() => setMethod('MANUAL')}>Build Manually</button>
+                  <button className="btn btn-primary" disabled={!selectedJob} onClick={() => navigate(selectedJobRoute('create'))}>Build Manually</button>
                 </article>
                 <article className="card">
                   <h3>AI assessment agent</h3>
                   <p>Choose an agent to prepare a draft using this job’s context.</p>
-                  <button className="btn btn-secondary" disabled={!selectedJob} onClick={() => setMethod('AI')}>Choose AI Agent</button>
+                  <button className="btn btn-secondary" disabled={!selectedJob} onClick={() => navigate(selectedJobRoute('ai'))}>Choose AI Agent</button>
                 </article>
               </div>
             </section>
           )}
 
-          {method === 'AI' && (
+          {isAgentRoute && (
             <section className="card">
-              <span className="badge badge-neutral">AI Agent · unavailable</span>
-              <h2 style={{ fontSize: '1.2rem', marginTop: 8 }}>No assessment agent is configured</h2>
-              <p>This project has no connected LLM or registered assessment-generation agent. It will not create template questions and present them as AI output.</p>
-              {aiUnavailable && <div role="alert" style={{ color: 'var(--status-danger)', marginBottom: 12 }}>Assessment agent could not generate the draft. Connect a real provider or build the assessment manually.</div>}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button className="btn btn-secondary" onClick={() => setAiUnavailable(true)}>Retry</button>
-                <button className="btn btn-secondary" onClick={() => { setMethod('MANUAL'); setAiUnavailable(false); }}>Build Manually</button>
+              <span className="badge badge-neutral">AI generation unavailable</span>
+              <h2 style={{ fontSize: '1.2rem', marginTop: 8 }}>Choose Assessment Agent</h2>
+              <p>Agent labels are shown for the planned flow. No real AI provider is configured, so generation is disabled and no generated questions are fabricated.</p>
+              <div style={{ display: 'grid', gap: 8, margin: '1rem 0' }}>
+                {[
+                  ['technical', 'Technical Assessment Agent', 'Technical questions based on this job’s required skills.'],
+                  ['coding', 'Coding Assessment Agent', 'Programming and problem-solving questions.'],
+                  ['conceptual', 'Conceptual Assessment Agent', 'Fundamentals and technical understanding.'],
+                  ['mixed', 'Mixed Assessment Agent', 'A balanced MCQ and coding assessment.'],
+                ].map(([id, name, summary]) => <label key={id} className="card" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}><input type="radio" name="assessment-agent" checked={selectedAgent === id} onChange={() => setSelectedAgent(id)} /><span><strong>{name}</strong><br /><small>{summary}</small></span><span className="badge badge-neutral" style={{ marginLeft: 'auto' }}>Unavailable</span></label>)}
               </div>
+              <button className="btn btn-secondary" disabled title="No AI provider is configured">AI assessment generation is not configured yet</button>
+                <button className="btn btn-primary" style={{ marginLeft: 8 }} onClick={() => navigate(selectedJobRoute('create'))}>Build Manually</button>
             </section>
           )}
 
-          {method === 'MANUAL' && (
+          {isManualRoute && (
             <section className="card">
               <h2 style={{ fontSize: '1.2rem', marginBottom: 12 }}>Assessment details</h2>
               <div className="form-group"><label className="form-label" htmlFor="assessment-title">Title</label><input id="assessment-title" className="form-input" value={title} onChange={(event) => setTitle(event.target.value)} /></div>
