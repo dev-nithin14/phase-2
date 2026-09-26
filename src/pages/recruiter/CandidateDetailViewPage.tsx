@@ -156,11 +156,16 @@ export const CandidateDetailViewPage: React.FC = () => {
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
                 Assessment Integrity
               </div>
-              <div style={{ marginTop: '0.6rem' }}>
+              <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <IntegrityBadge status={latestAttempt?.integrity_status || 'NORMAL'} />
+                {latestAttempt?.integrity_risk_score !== undefined && (
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                    ({latestAttempt.integrity_risk_score}/100 Risk)
+                  </span>
+                )}
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                {latestAttempt?.integrity_summary?.tab_switches || 0} tab switches recorded
+                {latestAttempt?.integrity_summary?.tab_switches || 0} tab switches · {latestAttempt?.integrity_summary?.face_absence_events || 0} face absences
               </p>
             </div>
           </div>

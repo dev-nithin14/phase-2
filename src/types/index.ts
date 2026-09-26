@@ -24,7 +24,9 @@ export type ApplicationStatus =
   | 'REJECTED' 
   | 'WITHDRAWN';
 
-export type IntegrityStatus = 'NORMAL' | 'MINOR_FLAGS' | 'REVIEW_REQUIRED';
+export type IntegrityStatus = 'NORMAL' | 'MINOR_FLAGS' | 'REVIEW_REQUIRED' | 'VERIFIED' | 'HIGH_RISK';
+
+export type RiskLevel = 'LOW RISK' | 'MEDIUM RISK' | 'HIGH RISK';
 
 export type SkillCategory = 
   | 'FRONTEND' 
@@ -311,11 +313,31 @@ export interface IntegrityEvent {
     | 'TAB_SWITCH' 
     | 'COPY_ATTEMPT' 
     | 'PASTE_ATTEMPT' 
+    | 'CUT_ATTEMPT'
     | 'VISIBILITY_HIDDEN' 
     | 'CAMERA_DISABLED' 
     | 'MIC_DISABLED' 
+    | 'FACE_PRESENT'
+    | 'FACE_ABSENT'
     | 'MULTIPLE_FACES' 
     | 'NO_FACE'
+    | 'CAMERA_INTERRUPTED'
+    | 'CAMERA_DISCONNECTED'
+    | 'PHONE_CAMERA_CONNECTED'
+    | 'PHONE_CAMERA_DISCONNECTED'
+    | 'CONTEXT_MENU_ATTEMPT'
+    | 'DEVTOOLS_SHORTCUT_ATTEMPT'
+    | 'SCREEN_SNAPSHOT_CAPTURED'
+    | 'QUESTION_OPENED'
+    | 'QUESTION_ANSWERED'
+    | 'QUESTION_CHANGED'
+    | 'ANSWER_CHANGED'
+    | 'CODE_RUN'
+    | 'CODE_SUBMITTED'
+    | 'QUESTION_SKIPPED'
+    | 'QUESTION_REVISITED'
+    | 'ASSESSMENT_STARTED'
+    | 'ASSESSMENT_SUBMITTED'
     | 'NETWORK_OFFLINE'
     | 'NETWORK_ONLINE';
   severity: 'LOW' | 'MEDIUM' | 'HIGH';
@@ -347,6 +369,9 @@ export interface AssessmentAttempt {
   mic_enabled: boolean;
   fullscreen_confirmed: boolean;
   integrity_status: IntegrityStatus;
+  integrity_risk_score?: number;
+  integrity_risk_level?: RiskLevel;
+  session_token?: string;
   integrity_summary: {
     tab_switches: number;
     fullscreen_exits: number;
@@ -355,6 +380,15 @@ export interface AssessmentAttempt {
     camera_dropouts: number;
     total_flags: number;
     status: IntegrityStatus;
+    face_absence_count?: number;
+    multiple_faces_count?: number;
+    phone_camera_status?: 'CONNECTED' | 'DISCONNECTED' | 'NOT_PAIRED';
+    warnings_count?: number;
+    context_menu_attempts?: number;
+    devtools_attempts?: number;
+    risk_score?: number;
+    risk_level?: RiskLevel;
+    timeline_summary?: string;
   };
   technical_score?: number;
   score_breakdown?: ScoreBreakdown & {

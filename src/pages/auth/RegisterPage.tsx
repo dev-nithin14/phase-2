@@ -31,6 +31,11 @@ export const RegisterPage: React.FC = () => {
       return;
     }
 
+    if (role === 'RECRUITER' && !companyName.trim()) {
+      setErrorMsg('Please enter your company name.');
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
 
@@ -44,12 +49,18 @@ export const RegisterPage: React.FC = () => {
       });
 
       if (res.success) {
-        navigate(res.role === 'RECRUITER' ? '/recruiter/dashboard' : '/candidate/dashboard', { replace: true });
+        if (res.role === 'RECRUITER') {
+          navigate('/recruiter/dashboard', { replace: true });
+        } else if (res.role === 'ADMIN') {
+          navigate('/admin/dashboard', { replace: true });
+        } else {
+          navigate('/candidate/dashboard', { replace: true });
+        }
       } else {
-        setErrorMsg(res.error || 'Registration failed. Please check your credentials and try again.');
+        setErrorMsg(res.error || 'Registration failed. Please check your details and try again.');
       }
     } catch {
-      setErrorMsg('An unexpected error occurred while creating your account.');
+      setErrorMsg('Unable to connect to the server. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -79,12 +90,29 @@ export const RegisterPage: React.FC = () => {
               fontSize: '0.85rem',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'space-between',
               gap: '0.5rem',
               marginBottom: '1.25rem',
             }}
           >
-            <AlertCircle size={16} />
-            <span>{errorMsg}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              <span>{errorMsg}</span>
+            </div>
+            {errorMsg.includes('already exists') && (
+              <Link
+                to="/login"
+                style={{
+                  color: 'var(--accent-primary)',
+                  fontWeight: 700,
+                  textDecoration: 'underline',
+                  whiteSpace: 'nowrap',
+                  marginLeft: '0.5rem',
+                }}
+              >
+                Sign In →
+              </Link>
+            )}
           </div>
         )}
 
@@ -244,7 +272,7 @@ export const RegisterPage: React.FC = () => {
               gap: '0.5rem',
             }}
           >
-            {loading ? 'Creating Account in Supabase...' : 'Create Account'} <ArrowRight size={16} />
+            {loading ? 'Creating Account...' : 'Create Account'} <ArrowRight size={16} />
           </button>
         </form>
 

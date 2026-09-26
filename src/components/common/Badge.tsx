@@ -54,25 +54,33 @@ interface IntegrityBadgeProps {
 
 export const IntegrityBadge: React.FC<IntegrityBadgeProps> = ({ status }) => {
   switch (status) {
+    case 'VERIFIED':
     case 'NORMAL':
       return (
-        <span className="badge badge-verified" title="Clean telemetry stream">
+        <span className="badge badge-verified" title="Assessment integrity appears consistent based on collected signals.">
           <ShieldCheck size={12} />
-          Normal
+          VERIFIED
         </span>
       );
     case 'MINOR_FLAGS':
-      return (
-        <span className="badge badge-warning" title="Minor ambient focus change or dual monitor shift">
-          <AlertTriangle size={12} />
-          Minor Flags
-        </span>
-      );
     case 'REVIEW_REQUIRED':
       return (
-        <span className="badge badge-danger" title="Multiple focus/window shifts recorded; human review recommended">
+        <span className="badge badge-warning" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', borderColor: '#f59e0b' }} title="Assessment requires recruiter review due to integrity signals.">
+          <AlertTriangle size={12} />
+          REVIEW REQUIRED
+        </span>
+      );
+    case 'HIGH_RISK':
+      return (
+        <span className="badge badge-danger" title="Multiple high-priority integrity signals detected.">
           <AlertCircle size={12} />
-          Review Required
+          HIGH RISK
+        </span>
+      );
+    default:
+      return (
+        <span className="badge badge-neutral">
+          {status}
         </span>
       );
   }

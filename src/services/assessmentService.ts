@@ -374,6 +374,8 @@ export async function completeAttempt(params: {
   candidateId: string;
   answers: Record<string, string>;
   submissions: Submission[];
+  integritySummary?: Record<string, unknown>;
+  integrityStatus?: string;
 }): Promise<AssessmentAttempt> {
   for (const submission of params.submissions.filter((item) => item.language !== 'mcq')) {
     await saveAttemptSubmission(submission);
@@ -383,6 +385,17 @@ export async function completeAttempt(params: {
     p_answers: params.answers,
   });
   if (scoreError) throw scoreError;
+
+  if (params.integritySummary) {
+    try {
+      await supabase.from('assessment_attempts').update({
+        integrity_summary: params.integritySummary,
+        integrity_status: params.integrityStatus || 'VERIFIED',
+      }).eq('id', params.attemptId);
+    } catch (integrityErr) {
+      console.warn('[assessmentService] Could not persist integrity summary:', integrityErr);
+    }
+  }
 
   const { data, error } = await supabase
     .from('assessment_attempts')

@@ -25,12 +25,18 @@ export const LoginPage: React.FC = () => {
     try {
       const res = await login(email, password);
       if (res.success) {
-        navigate(res.role === 'RECRUITER' ? '/recruiter/dashboard' : '/candidate/dashboard', { replace: true });
+        if (res.role === 'RECRUITER') {
+          navigate('/recruiter/dashboard', { replace: true });
+        } else if (res.role === 'ADMIN') {
+          navigate('/admin/dashboard', { replace: true });
+        } else {
+          navigate('/candidate/dashboard', { replace: true });
+        }
       } else {
-        setErrorMsg(res.error || 'Sign in failed. Check your email and password.');
+        setErrorMsg(res.error || 'Invalid email or password.');
       }
     } catch {
-      setErrorMsg('An unexpected error occurred while signing in.');
+      setErrorMsg('Unable to connect to the server. Please try again.');
     } finally {
       setLoading(false);
     }

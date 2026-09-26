@@ -19,6 +19,7 @@ import { CandidateSkillsPage } from './pages/candidate/CandidateSkillsPage';
 import { CandidateProjectsPage } from './pages/candidate/CandidateProjectsPage';
 import { CandidateApplicationsPage } from './pages/candidate/CandidateApplicationsPage';
 import { CandidateAssessmentWorkspacePage } from './pages/candidate/CandidateAssessmentWorkspacePage';
+import { PhoneCameraPage } from './pages/candidate/PhoneCameraPage';
 
 // Recruiter Portal
 import { RecruiterDashboard } from './pages/recruiter/RecruiterDashboard';
@@ -28,11 +29,13 @@ import { CreateJobPage } from './pages/recruiter/CreateJobPage';
 import { RecruiterAssessmentBuilderPage } from './pages/recruiter/RecruiterAssessmentBuilderPage';
 import { RecruiterAssessmentResultsPage } from './pages/recruiter/RecruiterAssessmentResultsPage';
 import { RecruiterCompanyPage } from './pages/recruiter/RecruiterCompanyPage';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
 
 const workspacePath = (role?: string) => {
   if (role === 'RECRUITER') return '/recruiter/dashboard';
+  if (role === 'ADMIN') return '/admin/dashboard';
   if (role === 'JOB_SEEKER') return '/candidate/dashboard';
-  return '/unsupported-role';
+  return '/candidate/dashboard';
 };
 
 const AuthEntry: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -41,7 +44,7 @@ const AuthEntry: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return user ? <Navigate to={workspacePath(user.role)} replace /> : <>{children}</>;
 };
 
-const ProtectedRoute: React.FC<{ role: 'JOB_SEEKER' | 'RECRUITER'; children: React.ReactNode }> = ({ role, children }) => {
+const ProtectedRoute: React.FC<{ role: 'JOB_SEEKER' | 'RECRUITER' | 'ADMIN'; children: React.ReactNode }> = ({ role, children }) => {
   const { user, isLoading } = useAuth();
   if (isLoading) return <div className="main-content">Restoring your session...</div>;
   if (!user) return <Navigate to="/login" replace />;
@@ -59,18 +62,12 @@ const UnsupportedRoleRoute: React.FC = () => {
   const { user, isLoading } = useAuth();
   if (isLoading) return <div className="main-content">Restoring your session...</div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'ADMIN') return <Navigate to={workspacePath(user.role)} replace />;
-  return (
-    <main className="main-content">
-      <h1>Workspace unavailable</h1>
-      <p>Your account role does not have a candidate or recruiter workspace. Contact your administrator.</p>
-    </main>
-  );
+  return <Navigate to={workspacePath(user.role)} replace />;
 };
 
 const ConditionalFooter: React.FC = () => {
   const { pathname } = useLocation();
-  if (pathname === '/login' || pathname === '/register' || pathname === '/verify-otp') return null;
+  if (pathname === '/login' || pathname === '/register' || pathname === '/verify-otp' || pathname === '/assessment/phone-camera') return null;
   return <Footer />;
 };
 
@@ -86,6 +83,8 @@ export const App: React.FC = () => {
             <Route path="/login" element={<AuthEntry><LoginPage /></AuthEntry>} />
             <Route path="/register" element={<AuthEntry><RegisterPage /></AuthEntry>} />
             <Route path="/verify-otp" element={<AuthEntry><LoginPage /></AuthEntry>} />
+            <Route path="/assessment/phone-camera" element={<PhoneCameraPage />} />
+            <Route path="/admin/dashboard" element={<ProtectedRoute role="ADMIN"><AdminDashboard /></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute role="JOB_SEEKER"><CandidateProfilePage /></ProtectedRoute>} />
 
             {/* Candidate job discovery */}

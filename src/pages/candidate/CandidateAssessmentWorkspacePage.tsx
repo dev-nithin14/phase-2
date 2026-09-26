@@ -61,17 +61,43 @@ export const CandidateAssessmentWorkspacePage: React.FC = () => {
     const breakdown = result.score_breakdown?.skill_breakdown || [];
     return (
       <main className="main-content" style={{ maxWidth: 860 }}>
-        <span className="badge badge-verified">Assessment evaluated</span>
-        <h1 style={{ fontSize: '2rem', marginTop: 8 }}>{assessment?.title || result.assessment?.title}</h1>
-        <p>Your submitted answers and question marks were saved to your assessment attempt.</p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className="badge badge-verified">Assessment Submitted</span>
+          <span className="badge badge-accent">Assessment Integrity: MONITORED</span>
+        </div>
+        <h1 style={{ fontSize: '2rem', marginTop: 10, fontWeight: 800 }}>{assessment?.title || result.assessment?.title}</h1>
+        <p style={{ color: 'var(--text-secondary)' }}>
+          Your answers were verified and recorded. The assessment session was monitored and submitted for recruiter review.
+        </p>
         <section className="card" style={{ marginTop: 18 }}>
-          <div style={{ color: 'var(--text-muted)' }}>Overall score</div>
-          <div style={{ fontSize: '2.5rem', fontWeight: 800 }}>{result.technical_score ?? 0}%</div>
-          <div style={{ color: 'var(--text-muted)' }}>Submitted {result.submitted_at ? new Date(result.submitted_at).toLocaleString() : 'just now'}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Overall Score</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--status-verified)' }}>{result.technical_score ?? 0}%</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 4 }}>
+            Submitted {result.submitted_at ? new Date(result.submitted_at).toLocaleString() : 'just now'}
+          </div>
         </section>
-        <h2 style={{ fontSize: '1.2rem', margin: '1.5rem 0 10px' }}>Skill-wise performance</h2>
-        {breakdown.length === 0 ? <p>No skill breakdown was returned for this attempt.</p> : breakdown.map((skill) => <article key={skill.skill_id} className="card" style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', gap: 12 }}><strong>{skill.skill_name}</strong><span>{skill.earned} / {skill.maximum} · {skill.percentage}%</span></article>)}
-        <Link to="/candidate/assessments" className="btn btn-secondary" style={{ marginTop: 12 }}>Back to Assessments</Link>
+        <h2 style={{ fontSize: '1.2rem', margin: '1.5rem 0 10px' }}>Skills Tested & Performance</h2>
+        {breakdown.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)' }}>Skills verified under this assessment.</p>
+        ) : (
+          breakdown.map((skill) => (
+            <article
+              key={skill.skill_id}
+              className="card"
+              style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}
+            >
+              <strong>{skill.skill_name}</strong>
+              <span>
+                {skill.earned} / {skill.maximum} marks · <strong>{skill.percentage}%</strong>
+              </span>
+            </article>
+          ))
+        )}
+        <div style={{ marginTop: 20 }}>
+          <Link to="/candidate/assessments" className="btn btn-secondary">
+            Back to Assessments
+          </Link>
+        </div>
       </main>
     );
   }
