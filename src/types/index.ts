@@ -218,6 +218,34 @@ export interface AssessmentQuestion {
   order_index: number;
 }
 
+export type ScreenEvidencePolicy = 'DISABLED' | 'EVERY_5_MINUTES' | 'EVERY_10_MINUTES' | 'CUSTOM_INTERVAL';
+
+export interface AssessmentSecurityPolicy {
+  laptop_camera: boolean;
+  microphone: boolean;
+  secondary_phone_camera: boolean;
+  fullscreen: 'REQUIRED' | 'OPTIONAL';
+  screen_evidence: ScreenEvidencePolicy;
+  screen_evidence_interval_minutes: number | null;
+  browser_integrity_monitoring: boolean;
+  network_monitoring: boolean;
+  explain_back: boolean;
+  code_similarity: boolean;
+}
+
+export const DEFAULT_ASSESSMENT_SECURITY_POLICY: AssessmentSecurityPolicy = {
+  laptop_camera: false,
+  microphone: false,
+  secondary_phone_camera: false,
+  fullscreen: 'OPTIONAL',
+  screen_evidence: 'DISABLED',
+  screen_evidence_interval_minutes: null,
+  browser_integrity_monitoring: false,
+  network_monitoring: false,
+  explain_back: false,
+  code_similarity: false,
+};
+
 export interface Assessment {
   id: string;
   job_id?: string;
@@ -228,6 +256,7 @@ export interface Assessment {
   duration_minutes: number;
   total_points: number;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  security_policy?: AssessmentSecurityPolicy;
   question_count?: number;
   questions?: AssessmentQuestion[];
   created_at: string;
@@ -286,7 +315,9 @@ export interface IntegrityEvent {
     | 'CAMERA_DISABLED' 
     | 'MIC_DISABLED' 
     | 'MULTIPLE_FACES' 
-    | 'NO_FACE';
+    | 'NO_FACE'
+    | 'NETWORK_OFFLINE'
+    | 'NETWORK_ONLINE';
   severity: 'LOW' | 'MEDIUM' | 'HIGH';
   metadata?: Record<string, unknown>;
   timestamp: string;
@@ -311,6 +342,7 @@ export interface AssessmentAttempt {
   status: 'IN_PROGRESS' | 'SUBMITTED' | 'EVALUATED' | 'FLAGGED';
   started_at: string;
   submitted_at?: string;
+  explain_back_response?: string | null;
   camera_enabled: boolean;
   mic_enabled: boolean;
   fullscreen_confirmed: boolean;

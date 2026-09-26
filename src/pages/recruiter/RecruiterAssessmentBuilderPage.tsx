@@ -3,11 +3,11 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabase';
 import {
-  Assessment, AssessmentQuestion, Job, Skill, TestCase,
+  Assessment, AssessmentQuestion, AssessmentSecurityPolicy, DEFAULT_ASSESSMENT_SECURITY_POLICY, Job, Skill, TestCase,
 } from '../../types';
 import {
   AssessmentQuestionDraft, createAssessmentDraft, deleteDraftQuestion, getDraftAssessmentQuestions,
-  getDraftQuestionKey, getRecruiterAssessments, getRecruiterJobs, publishAssessment, saveAssessmentQuestion,
+  getDraftQuestionKey, getRecruiterAssessments, getRecruiterJobs, publishAssessment, saveAssessmentQuestion, updateDraftSecurityPolicy,
 } from '../../services/assessmentService';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 
@@ -56,6 +56,28 @@ const errorText = (error: unknown, operation: string) => {
   return description;
 };
 
+const SecurityPolicyEditor: React.FC<{
+  policy: AssessmentSecurityPolicy;
+  onChange: (update: Partial<AssessmentSecurityPolicy>) => void;
+}> = ({ policy, onChange }) => (
+  <fieldset className="card" style={{ margin: '1rem 0', padding: '1rem' }}>
+    <legend className="form-label">Assessment security policy</legend>
+    <p>Enabled controls are enforced by this assessment. Unavailable capabilities cannot be enabled.</p>
+    <label style={{ display: 'flex', gap: 8, margin: '0.6rem 0' }}><input type="checkbox" checked={policy.laptop_camera} onChange={(event) => onChange({ laptop_camera: event.target.checked })} />Laptop camera permission required at assessment start</label>
+    <label style={{ display: 'flex', gap: 8, margin: '0.6rem 0' }}><input type="checkbox" checked={policy.microphone} onChange={(event) => onChange({ microphone: event.target.checked })} />Microphone permission required at assessment start</label>
+    <div className="form-group"><label className="form-label" htmlFor="assessment-fullscreen">Fullscreen</label><select id="assessment-fullscreen" className="form-select" value={policy.fullscreen} onChange={(event) => onChange({ fullscreen: event.target.value as AssessmentSecurityPolicy['fullscreen'] })}><option value="OPTIONAL">Optional</option><option value="REQUIRED">Required</option></select></div>
+    <label style={{ display: 'flex', gap: 8, margin: '0.6rem 0' }}><input type="checkbox" checked={policy.browser_integrity_monitoring} onChange={(event) => onChange({ browser_integrity_monitoring: event.target.checked })} />Browser focus and clipboard event monitoring</label>
+    <label style={{ display: 'flex', gap: 8, margin: '0.6rem 0' }}><input type="checkbox" checked={policy.network_monitoring} onChange={(event) => onChange({ network_monitoring: event.target.checked })} />Browser online/offline event monitoring</label>
+    <label style={{ display: 'flex', gap: 8, margin: '0.6rem 0' }}><input type="checkbox" checked={policy.explain_back} onChange={(event) => onChange({ explain_back: event.target.checked })} />Require a written explain-back response before submission</label>
+    <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: 12, paddingTop: 10 }}>
+      <p><strong>Unavailable in this build</strong></p>
+      <label style={{ display: 'flex', gap: 8, margin: '0.6rem 0', opacity: 0.65 }}><input type="checkbox" checked={false} disabled />Secondary phone camera (phone pairing unavailable)</label>
+      <div className="form-group"><label className="form-label" htmlFor="screen-evidence-policy">Screen evidence</label><select id="screen-evidence-policy" className="form-select" value="DISABLED" disabled><option value="DISABLED">Disabled (capture/storage unavailable)</option></select></div>
+      <label style={{ display: 'flex', gap: 8, margin: '0.6rem 0', opacity: 0.65 }}><input type="checkbox" checked={false} disabled />Code similarity (analysis service unavailable)</label>
+    </div>
+  </fieldset>
+);
+
 export const RecruiterAssessmentBuilderPage: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
@@ -76,6 +98,7 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(45);
+  const [securityPolicy, setSecurityPolicy] = useState<AssessmentSecurityPolicy>(DEFAULT_ASSESSMENT_SECURITY_POLICY);
   const [questionDraft, setQuestionDraft] = useState<AssessmentQuestionDraft | null>(null);
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -160,6 +183,7 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
         title,
         description,
         durationMinutes: duration,
+        securityPolicy,
       });
       setDraft({ ...created, job: selectedJob, questions: [] });
       setQuestionDraft(blankQuestion(0));
@@ -198,6 +222,7 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
     setTitle(assessment.title);
     setDescription(assessment.description || '');
     setDuration(assessment.duration_minutes);
+    setSecurityPolicy({ ...DEFAULT_ASSESSMENT_SECURITY_POLICY, ...assessment.security_policy });
     setQuestionDraft(blankQuestion(assessment.questions?.length || 0));
     setReview(false);
   };
@@ -281,6 +306,7 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
       setQuestionDraft(null);
       setTitle('');
       setDescription('');
+      setSecurityPolicy(DEFAULT_ASSESSMENT_SECURITY_POLICY);
       navigate('/recruiter/assessments');
       await refresh();
     } catch (publishError) {
@@ -292,6 +318,19 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
 
   const replaceQuestionDraft = (update: Partial<AssessmentQuestionDraft>) => {
     setQuestionDraft((current) => current ? { ...current, ...update } : current);
+  };
+
+  const updateSecurityPolicy = (update: Partial<AssessmentSecurityPolicy>) => {
+    const nextPolicy = { ...securityPolicy, ...update };
+    setSecurityPolicy(nextPolicy);
+    if (draft && user) {
+      setSaving(true);
+      setActionError('');
+      void updateDraftSecurityPolicy(draft.id, user.id, nextPolicy)
+        .then(() => setDraft((currentDraft) => currentDraft ? { ...currentDraft, security_policy: nextPolicy } : currentDraft))
+        .catch((policyError) => setActionError(errorText(policyError, 'saving the assessment security policy')))
+        .finally(() => setSaving(false));
+    }
   };
 
   if (loading) return <main className="main-content">Loading your jobs and assessments…</main>;
@@ -370,6 +409,7 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
               <div className="form-group"><label className="form-label" htmlFor="assessment-title">Title</label><input id="assessment-title" className="form-input" value={title} onChange={(event) => setTitle(event.target.value)} /></div>
               <div className="form-group"><label className="form-label" htmlFor="assessment-description">Description</label><textarea id="assessment-description" className="form-textarea" value={description} onChange={(event) => setDescription(event.target.value)} /></div>
               <div className="form-group"><label className="form-label" htmlFor="assessment-duration">Duration (minutes)</label><input id="assessment-duration" className="form-input" type="number" min={1} max={480} value={duration} onChange={(event) => setDuration(Number(event.target.value))} /></div>
+              <SecurityPolicyEditor policy={securityPolicy} onChange={updateSecurityPolicy} />
               <button className="btn btn-primary" disabled={saving || !title.trim()} onClick={beginDraft}>{saving ? 'Saving draft…' : 'Create Draft'}</button>
             </section>
           )}
@@ -439,8 +479,10 @@ export const RecruiterAssessmentBuilderPage: React.FC = () => {
             <section className="card">
               <h2 style={{ fontSize: '1.25rem' }}>Assessment review</h2>
               <p>{draft.title} · {selectedJob?.title} · Manual · {draft.duration_minutes} minutes · {questions.length} questions · {totalMarks} marks</p>
+              <p>Policy: camera {securityPolicy.laptop_camera ? 'on' : 'off'}, mic {securityPolicy.microphone ? 'on' : 'off'}, fullscreen {securityPolicy.fullscreen.toLowerCase()}, browser monitoring {securityPolicy.browser_integrity_monitoring ? 'on' : 'off'}, network events {securityPolicy.network_monitoring ? 'on' : 'off'}, explain-back {securityPolicy.explain_back ? 'on' : 'off'}.</p>
+              <SecurityPolicyEditor policy={securityPolicy} onChange={updateSecurityPolicy} />
               {questions.map((question, index) => <article key={question.id} style={{ padding: '1rem 0', borderTop: '1px solid var(--border-subtle)' }}><span className="badge badge-neutral">QUESTION {index + 1} · {question.question_type} · {question.difficulty} · {question.points} marks</span><h3 style={{ marginTop: 8 }}>{question.title}</h3><p>{question.statement}</p>{question.question_type === 'MCQ' && <ul>{question.options.map((option) => <li key={option.id}>{option.id}. {option.text}</li>)}</ul>}</article>)}
-              <div style={{ display: 'flex', gap: 8 }}><button className="btn btn-secondary" onClick={() => setReview(false)}>Back to Edit</button><button className="btn btn-primary" disabled={!questions.length || publishing} onClick={() => void handlePublish()}>{publishing ? 'Publishing…' : 'Publish Assessment'}</button></div>
+              <div style={{ display: 'flex', gap: 8 }}><button className="btn btn-secondary" onClick={() => setReview(false)}>Back to Edit</button><button className="btn btn-primary" disabled={!questions.length || publishing || saving} onClick={() => void handlePublish()}>{publishing ? 'Publishing…' : 'Publish Assessment'}</button></div>
             </section>
           )}
           {!review && <button className="btn btn-primary" style={{ marginTop: 18 }} disabled={!questions.length} onClick={() => setReview(true)}>Review Before Publishing</button>}

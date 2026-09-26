@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Assessment, AssessmentAttempt, AssessmentQuestion, Job, Submission } from '../types';
+import { Assessment, AssessmentAttempt, AssessmentQuestion, AssessmentSecurityPolicy, IntegrityEvent, Job, Submission } from '../types';
 
 export interface AssessmentQuestionDraft extends Omit<AssessmentQuestion, 'id' | 'assessment_id' | 'skill'> {
   id?: string;
@@ -92,6 +92,7 @@ export async function createAssessmentDraft(params: {
   title: string;
   description: string;
   durationMinutes: number;
+  securityPolicy: AssessmentSecurityPolicy;
 }): Promise<Assessment> {
   const { data: job, error: jobError } = await supabase
     .from('jobs')
@@ -111,11 +112,29 @@ export async function createAssessmentDraft(params: {
       duration_minutes: params.durationMinutes,
       total_points: 0,
       status: 'DRAFT',
+      security_policy: params.securityPolicy,
     })
     .select('*')
     .single();
   if (error) throw error;
   return data as Assessment;
+}
+
+export async function updateDraftSecurityPolicy(
+  assessmentId: string,
+  recruiterId: string,
+  securityPolicy: AssessmentSecurityPolicy
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('assessments')
+    .update({ security_policy: securityPolicy, updated_at: new Date().toISOString() })
+    .eq('id', assessmentId)
+    .eq('creator_id', recruiterId)
+    .eq('status', 'DRAFT')
+    .select('id')
+    .single();
+  if (error) throw error;
+  if (!data) throw new Error('Assessment draft was not found or is no longer editable.');
 }
 
 export async function saveAssessmentQuestion(
@@ -249,7 +268,7 @@ export async function getEligibleAssessments(candidateId: string): Promise<Asses
     .filter((assessment: Assessment | null) => assessment?.status === 'PUBLISHED') as Assessment[];
 }
 
-export async function getOrStartAttempt(assessmentId: string, candidateId: string): Promise<AssessmentAttempt> {
+export async function getOrStartAttempt(assessmentId: string, candidateId: string, policy: AssessmentSecurityPolicy): Promise<{ attempt: AssessmentAttempt; isNew: boolean }> {
   const { data: invitation, error: invitationError } = await supabase
     .from('assessment_invitations')
     .select('id, assessment:assessments!inner(id, status)')
@@ -272,7 +291,7 @@ export async function getOrStartAttempt(assessmentId: string, candidateId: strin
     .limit(1)
     .maybeSingle();
   if (existingError) throw existingError;
-  if (existing) return existing as AssessmentAttempt;
+  if (existing) return { attempt: existing as AssessmentAttempt, isNew: false };
 
   const { data, error } = await supabase
     .from('assessment_attempts')
@@ -282,13 +301,56 @@ export async function getOrStartAttempt(assessmentId: string, candidateId: strin
       candidate_id: candidateId,
       status: 'IN_PROGRESS',
       started_at: new Date().toISOString(),
+      camera_enabled: false,
+      mic_enabled: false,
+      fullscreen_confirmed: policy.fullscreen === 'OPTIONAL',
       integrity_status: 'NORMAL',
       integrity_summary: { tab_switches: 0, fullscreen_exits: 0, copy_attempts: 0, paste_attempts: 0, camera_dropouts: 0, total_flags: 0, status: 'NORMAL' },
     })
     .select('*, submissions(*)')
     .single();
   if (error) throw error;
-  return data as AssessmentAttempt;
+  return { attempt: data as AssessmentAttempt, isNew: true };
+}
+
+export async function updateAttemptSecurityState(params: {
+  attemptId: string;
+  candidateId: string;
+  cameraEnabled: boolean;
+  microphoneEnabled: boolean;
+  fullscreenConfirmed: boolean;
+  resetStartTime?: boolean;
+}): Promise<void> {
+  const update = {
+    camera_enabled: params.cameraEnabled,
+    mic_enabled: params.microphoneEnabled,
+    fullscreen_confirmed: params.fullscreenConfirmed,
+    ...(params.resetStartTime ? { started_at: new Date().toISOString() } : {}),
+  };
+  const { data, error } = await supabase.from('assessment_attempts').update(update)
+    .eq('id', params.attemptId).eq('candidate_id', params.candidateId).eq('status', 'IN_PROGRESS')
+    .select('id').single();
+  if (error) throw error;
+  if (!data) throw new Error('The active candidate attempt could not be updated.');
+}
+
+export async function saveExplainBackResponse(attemptId: string, candidateId: string, response: string): Promise<void> {
+  const { data, error } = await supabase.from('assessment_attempts').update({ explain_back_response: response })
+    .eq('id', attemptId).eq('candidate_id', candidateId).eq('status', 'IN_PROGRESS')
+    .select('id').single();
+  if (error) throw error;
+  if (!data) throw new Error('The active candidate attempt could not save the explain-back response.');
+}
+
+export async function recordAssessmentIntegrityEvent(event: Omit<IntegrityEvent, 'id'>): Promise<void> {
+  const { error } = await supabase.from('integrity_events').insert({
+    attempt_id: event.attempt_id,
+    event_type: event.event_type,
+    severity: event.severity,
+    metadata: event.metadata || {},
+    timestamp: event.timestamp,
+  });
+  if (error) throw error;
 }
 
 export async function saveAttemptSubmission(submission: Omit<Submission, 'id'>): Promise<Submission> {
