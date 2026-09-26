@@ -34,20 +34,24 @@ export const RegisterPage: React.FC = () => {
     setLoading(true);
     setErrorMsg(null);
 
-    const res = await register({
-      email,
-      password,
-      fullName,
-      role,
-      companyName: role === 'RECRUITER' ? companyName : undefined,
-    });
+    try {
+      const res = await register({
+        email,
+        password,
+        fullName,
+        role,
+        companyName: role === 'RECRUITER' ? companyName : undefined,
+      });
 
-    setLoading(false);
-
-    if (res.success) {
-      navigate(role === 'RECRUITER' ? '/recruiter/dashboard' : '/candidate/profile');
-    } else {
-      setErrorMsg(res.error || 'Registration failed. Please check your credentials and try again.');
+      if (res.success) {
+        navigate(res.role === 'RECRUITER' ? '/recruiter/dashboard' : '/candidate/dashboard', { replace: true });
+      } else {
+        setErrorMsg(res.error || 'Registration failed. Please check your credentials and try again.');
+      }
+    } catch {
+      setErrorMsg('An unexpected error occurred while creating your account.');
+    } finally {
+      setLoading(false);
     }
   };
 

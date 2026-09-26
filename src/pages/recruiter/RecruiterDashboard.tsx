@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { appStore } from '../../services/store';
@@ -10,10 +10,23 @@ import { IntegrityBadge } from '../../components/common/Badge';
 
 export const RecruiterDashboard: React.FC = () => {
   const { user } = useAuth();
-  const jobs = appStore.getJobs();
-  const applications = appStore.getState().applications;
-  const assessments = appStore.getAssessments();
-  const attempts = appStore.getState().attempts;
+  const [storeState, setStoreState] = useState(() => appStore.getState());
+
+  useEffect(() => {
+    const unsubscribe = appStore.subscribe(() => setStoreState({ ...appStore.getState() }));
+    void appStore.syncFromSupabase();
+    return unsubscribe;
+  }, []);
+
+  if (!user) return null;
+
+  const ownedJobs = storeState.jobs.filter((job) => job.recruiter_id === user.id);
+  const jobs = ownedJobs.filter((job) => job.status === 'PUBLISHED');
+  const ownedJobIds = new Set(ownedJobs.map((job) => job.id));
+  const applications = storeState.applications.filter((application) => ownedJobIds.has(application.job_id));
+  const assessments = storeState.assessments.filter((assessment) => assessment.creator_id === user.id);
+  const ownedAssessmentIds = new Set(assessments.map((assessment) => assessment.id));
+  const attempts = storeState.attempts.filter((attempt) => ownedAssessmentIds.has(attempt.assessment_id));
 
   const totalEvaluated = attempts.filter((a) => a.status === 'EVALUATED').length;
   const totalShortlisted = applications.filter((a) => a.status === 'SHORTLISTED' || a.status === 'INTERVIEW').length;
@@ -23,9 +36,10 @@ export const RecruiterDashboard: React.FC = () => {
       {/* Recruiter Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
-          <h1 style={{ fontSize: '2.2rem', fontWeight: 800 }}>Recruiter Command Center</h1>
+            <span className="badge badge-verified">Recruiter Workspace</span>
+            <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginTop: '0.35rem' }}>Your Hiring Workspace</h1>
           <p style={{ color: 'var(--text-secondary)' }}>
-            Discover, rank, assess, and hire engineers based on verified technical evidence.
+            Find verified talent, review evidence, and manage your hiring pipeline.
           </p>
         </div>
 
@@ -43,7 +57,7 @@ export const RecruiterDashboard: React.FC = () => {
       <div className="grid-4" style={{ marginBottom: '2.5rem' }}>
         <div className="card">
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Active Published Jobs
+            Active Jobs
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', marginTop: '0.3rem' }}>
             {jobs.length}
@@ -53,7 +67,7 @@ export const RecruiterDashboard: React.FC = () => {
 
         <div className="card">
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Total Applications
+            Applications
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--accent-primary)', marginTop: '0.3rem' }}>
             {applications.length}
@@ -63,7 +77,7 @@ export const RecruiterDashboard: React.FC = () => {
 
         <div className="card">
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Assessments Completed
+            Completed Assessments
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--status-verified)', marginTop: '0.3rem' }}>
             {totalEvaluated}
@@ -92,7 +106,11 @@ export const RecruiterDashboard: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {jobs.map((job) => {
+            {jobs.length === 0 ? (
+              <div className="card" style={{ padding: '2rem', color: 'var(--text-muted)' }}>
+                No active jobs yet. Create your first job to begin receiving applications.
+              </div>
+            ) : jobs.map((job) => {
             const jobApps = applications.filter((a) => a.job_id === job.id);
             return (
               <div
@@ -142,6 +160,13 @@ export const RecruiterDashboard: React.FC = () => {
                   >
                     <Users size={16} /> View Ranked Candidates ({jobApps.length})
                   </Link>
+                  <Link
+                    to="/recruiter/assessments/new"
+                    state={{ jobId: job.id }}
+                    className="btn btn-secondary"
+                  >
+                    <FileCode2 size={16} /> Create Assessment
+                  </Link>
                 </div>
               </div>
             );
@@ -155,7 +180,11 @@ export const RecruiterDashboard: React.FC = () => {
           <ShieldCheck size={18} color="var(--status-verified)" /> Assessment Evaluation & Integrity Audit Stream
         </h3>
 
-        <div className="table-container">
+        {attempts.length === 0 ? (
+          <div className="card" style={{ padding: '1.5rem', color: 'var(--text-muted)' }}>
+            No candidate assessment activity yet.
+          </div>
+        ) : <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
@@ -197,7 +226,7 @@ export const RecruiterDashboard: React.FC = () => {
               ))}
             </tbody>
           </table>
-        </div>
+        </div>}
       </div>
     </div>
   );

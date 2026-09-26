@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Profile, UserRole } from '../types';
-import { appStore } from '../services/store';
-import { supabase } from '../services/supabase';
+import { isSupabaseConfigured, supabase } from '../services/supabase';
 
 interface AuthResponse {
   success: boolean;
   error?: string;
+  role?: UserRole;
 }
 
 interface RegisterData {
@@ -21,75 +21,77 @@ interface AuthContextType {
   role: UserRole;
   isLoggedIn: boolean;
   isLoading: boolean;
-  login: (email: string, password?: string, desiredRole?: UserRole) => Promise<AuthResponse>;
+  login: (email: string, password: string) => Promise<AuthResponse>;
   register: (data: RegisterData) => Promise<AuthResponse>;
   logout: () => Promise<void>;
-  switchRole: (role: UserRole) => void;
-  switchUser: (profileId: string) => void;
   updateCurrentUser: (data: Partial<Profile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<Profile | null>(appStore.getState().currentProfile);
+  const [user, setUser] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  // Subscribe to store state changes
-  useEffect(() => {
-    const unsubscribe = appStore.subscribe(() => {
-      setUser(appStore.getState().currentProfile);
-    });
-    return unsubscribe;
-  }, []);
 
   // Hydrate auth session from Supabase on mount and listen to auth changes
   useEffect(() => {
     let isMounted = true;
+    let profileRequest = 0;
+    let authRevision = 0;
 
-    const initAuth = async () => {
+    const loadProfile = async (userId: string) => {
+      const request = ++profileRequest;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user && isMounted) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
 
-          if (profile) {
-            appStore.updateProfile(profile);
-            appStore.switchProfile(profile.id);
-          }
-        }
+        if (!isMounted || request !== profileRequest) return;
+        setUser(error ? null : data as Profile);
       } catch (err) {
-        console.warn('[AuthContext] Session hydration note:', err);
+        if (!isMounted || request !== profileRequest) return;
+        console.error('[AuthContext] Profile hydration failed:', err);
+        setUser(null);
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted && request === profileRequest) setIsLoading(false);
       }
     };
 
-    initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profile) {
-          appStore.updateProfile(profile);
-          appStore.switchProfile(profile.id);
+    const initAuth = async () => {
+      const observedRevision = authRevision;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted || observedRevision !== authRevision) return;
+        if (session?.user) await loadProfile(session.user.id);
+        else {
+          setUser(null);
+          setIsLoading(false);
         }
-      } else if (event === 'SIGNED_OUT') {
-        const defaultProfile = appStore.getState().profiles[0];
-        if (defaultProfile) {
-          appStore.switchProfile(defaultProfile.id);
+      } catch (err) {
+        console.error('[AuthContext] Session hydration failed:', err);
+        if (isMounted && observedRevision === authRevision) {
+          setUser(null);
+          setIsLoading(false);
         }
       }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authRevision += 1;
+      if (session?.user) {
+        setIsLoading(true);
+        void loadProfile(session.user.id);
+      }
+      else {
+        profileRequest += 1;
+        setUser(null);
+        setIsLoading(false);
+      }
     });
+
+    void initAuth();
 
     return () => {
       isMounted = false;
@@ -97,73 +99,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const login = async (email: string, password?: string, desiredRole: UserRole = 'JOB_SEEKER'): Promise<AuthResponse> => {
+  const login = async (email: string, password: string): Promise<AuthResponse> => {
     const cleanEmail = email.trim();
-    // Default fallback passwords for demo seeded accounts
-    let effectivePassword = password;
-    if (!effectivePassword) {
-      if (cleanEmail.toLowerCase() === 'karthik@cloudscale.io') {
-        effectivePassword = 'RecruiterPassword123!';
-      } else if (cleanEmail.toLowerCase() === 'samarth.mn@example.com') {
-        effectivePassword = 'CandidatePassword123!';
-      } else {
-        effectivePassword = 'CandidatePassword123!';
-      }
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'Supabase is not configured. Add the project URL and public key to the environment before signing in.' };
     }
-
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
-        password: effectivePassword,
+        password,
       });
 
       if (error) {
-        // Fallback for offline or local preview
-        const existingLocal = appStore.getState().profiles.find((p) => p.email.toLowerCase() === cleanEmail.toLowerCase());
-        if (existingLocal) {
-          appStore.switchProfile(existingLocal.id);
-          return { success: true };
-        }
         return { success: false, error: error.message };
       }
 
       if (data?.user) {
-        // Query user's real profile from Supabase
-        const { data: profile, error: profErr } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
 
-        if (profile && !profErr) {
-          // Add or update in store
-          appStore.updateProfile(profile);
-          appStore.switchProfile(profile.id);
-        } else {
-          // If profile hasn't populated yet, create a local representation
-          const fallbackProfile: Profile = {
-            id: data.user.id,
-            email: data.user.email || cleanEmail,
-            full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
-            role: (data.user.user_metadata?.role as UserRole) || desiredRole,
-            experience_years: desiredRole === 'JOB_SEEKER' ? 2 : 5,
-            availability: 'IMMEDIATELY',
-            preferred_job_type: 'FULL_TIME',
-            preferred_location: 'HYBRID',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          appStore.updateProfile(fallbackProfile);
-          appStore.switchProfile(fallbackProfile.id);
+        if (profileError || !profile) {
+          await supabase.auth.signOut();
+          setUser(null);
+          return { success: false, error: 'Your account profile could not be loaded. Please contact support.' };
         }
 
-        return { success: true };
+        setUser(profile as Profile);
+        return { success: true, role: profile.role as UserRole };
       }
 
       return { success: false, error: 'Authentication failed. Please verify your credentials.' };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[AuthContext] Login error:', err);
-      return { success: false, error: err.message || 'An unexpected error occurred during login.' };
+      return { success: false, error: err instanceof Error ? err.message : 'An unexpected error occurred during login.' };
     }
   };
 
@@ -175,6 +146,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     companyName,
   }: RegisterData): Promise<AuthResponse> => {
     const cleanEmail = email.trim();
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'Supabase is not configured. Add the project URL and public key to the environment before creating an account.' };
+    }
     try {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
@@ -192,7 +166,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: signUpError.message };
       }
 
-      // Automatically sign in to establish the authenticated session
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password,
@@ -203,74 +176,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const activeUserId = signInData?.user?.id || signUpData?.user?.id;
-      if (activeUserId) {
-        // Give database trigger a tiny moment to finish writing public.profiles
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', activeUserId)
-          .single();
-
-        if (profile) {
-          appStore.updateProfile(profile);
-          appStore.switchProfile(profile.id);
-        } else {
-          const newProfile: Profile = {
-            id: activeUserId,
-            email: cleanEmail,
-            full_name: fullName.trim(),
-            role: registerRole,
-            experience_years: registerRole === 'JOB_SEEKER' ? 1 : 4,
-            availability: 'IMMEDIATELY',
-            preferred_job_type: 'FULL_TIME',
-            preferred_location: 'HYBRID',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          appStore.updateProfile(newProfile);
-          appStore.switchProfile(newProfile.id);
-        }
+      if (!activeUserId) {
+        return { success: false, error: 'Account created, but the authenticated user could not be loaded.' };
       }
 
-      return { success: true };
-    } catch (err: any) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', activeUserId)
+        .single();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        return { success: false, error: 'Account created, but its profile is not available yet. Please sign in again shortly.' };
+      }
+
+      setUser(profile as Profile);
+      return { success: true, role: profile.role as UserRole };
+    } catch (err: unknown) {
       console.error('[AuthContext] Registration error:', err);
-      return { success: false, error: err.message || 'An unexpected error occurred during registration.' };
+      return { success: false, error: err instanceof Error ? err.message : 'An unexpected error occurred during registration.' };
     }
   };
 
   const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.warn('[AuthContext] Sign out note:', err);
-    }
-    const firstCand = appStore.getState().profiles[0];
-    if (firstCand) appStore.switchProfile(firstCand.id);
-  };
-
-  const switchRole = (newRole: UserRole) => {
-    const target = appStore.getState().profiles.find((p) => p.role === newRole);
-    if (target) {
-      appStore.switchProfile(target.id);
-    } else if (user) {
-      appStore.updateProfile({ role: newRole });
-    }
-  };
-
-  const switchUser = (profileId: string) => {
-    appStore.switchProfile(profileId);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    setUser(null);
   };
 
   const updateCurrentUser = async (data: Partial<Profile>) => {
-    appStore.updateProfile(data);
-    const cur = appStore.getState().currentProfile;
-    if (cur?.id) {
-      try {
-        await supabase.from('profiles').update(data).eq('id', cur.id);
-      } catch (err) {
-        console.warn('[AuthContext] Supabase profile sync warning:', err);
-      }
+    if (!user) return;
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .update(data)
+      .eq('id', user.id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    if (profile) {
+      setUser(profile as Profile);
     }
   };
 
@@ -284,8 +229,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         logout,
-        switchRole,
-        switchUser,
         updateCurrentUser,
       }}
     >

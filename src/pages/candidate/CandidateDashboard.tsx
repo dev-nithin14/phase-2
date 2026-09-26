@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { appStore } from '../../services/store';
@@ -11,13 +11,21 @@ import { SkillPassportCard } from '../../components/passport/SkillPassportCard';
 
 export const CandidateDashboard: React.FC = () => {
   const { user } = useAuth();
+  const [storeState, setStoreState] = useState(() => appStore.getState());
+
+  useEffect(() => {
+    const unsubscribe = appStore.subscribe(() => setStoreState({ ...appStore.getState() }));
+    void appStore.syncFromSupabase();
+    return unsubscribe;
+  }, []);
+
   if (!user) return null;
 
-  const candidateSkills = appStore.getCandidateSkills(user.id);
-  const candidateProjects = appStore.getCandidateProjects(user.id);
-  const attempts = appStore.getState().attempts.filter((a) => a.candidate_id === user.id);
-  const applications = appStore.getState().applications.filter((a) => a.candidate_id === user.id);
-  const allJobs = appStore.getJobs();
+  const candidateSkills = storeState.profileSkills[user.id] || [];
+  const candidateProjects = storeState.projects[user.id] || [];
+  const attempts = storeState.attempts.filter((a) => a.candidate_id === user.id);
+  const applications = storeState.applications.filter((a) => a.candidate_id === user.id);
+  const allJobs = storeState.jobs.filter((job) => job.status === 'PUBLISHED');
 
   // Top recommended jobs calculated deterministically
   const recommendedJobs = allJobs
@@ -29,20 +37,24 @@ export const CandidateDashboard: React.FC = () => {
     .slice(0, 3);
 
   // Profile completion calculation
-  let completionPct = 40;
-  if (user.bio) completionPct += 15;
-  if (candidateSkills.length >= 3) completionPct += 15;
-  if (candidateProjects.length >= 2) completionPct += 15;
-  if (attempts.length >= 1) completionPct += 15;
+  const completedProfileSteps = [
+    Boolean(user.full_name),
+    Boolean(user.bio),
+    Boolean(user.github_url || user.portfolio_url),
+    candidateSkills.length > 0,
+    candidateProjects.length > 0,
+  ].filter(Boolean).length;
+  const completionPct = Math.round((completedProfileSteps / 5) * 100);
 
   return (
     <div className="main-content">
       {/* Header Greeting */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
-          <h1 style={{ fontSize: '2.2rem', fontWeight: 800 }}>Developer Portal</h1>
+            <span className="badge badge-accent">Candidate Workspace</span>
+            <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginTop: '0.35rem' }}>Your Career Workspace</h1>
           <p style={{ color: 'var(--text-secondary)' }}>
-            Welcome back, <strong>{user.full_name}</strong>. Your evidence-backed profile is active.
+            Welcome back, <strong>{user.full_name}</strong>. Continue building proof for your next opportunity.
           </p>
         </div>
 
@@ -83,7 +95,7 @@ export const CandidateDashboard: React.FC = () => {
 
         <div className="card">
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Active Applications
+            Applications
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', marginTop: '0.3rem' }}>
             {applications.length}
@@ -95,12 +107,12 @@ export const CandidateDashboard: React.FC = () => {
 
         <div className="card">
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Assessments Completed
+            Assessment Attempts
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--accent-cyan)', marginTop: '0.3rem' }}>
             {attempts.length}
           </div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>Monaco sandbox verified</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>Recorded in your account</p>
         </div>
       </div>
 
@@ -116,7 +128,11 @@ export const CandidateDashboard: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {recommendedJobs.map(({ job, match }) => (
+            {recommendedJobs.length === 0 ? (
+              <div className="card" style={{ padding: '1.5rem', color: 'var(--text-muted)' }}>
+                No opportunities are available yet. Check back as employers publish roles.
+              </div>
+            ) : recommendedJobs.map(({ job, match }) => (
               <div key={job.id} className="card card-interactive" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem' }}>
                 <div>
                   <h4 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{job.title}</h4>
@@ -157,7 +173,7 @@ export const CandidateDashboard: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             {applications.length === 0 ? (
               <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                No active applications. Browse jobs to apply!
+                No applications yet. Explore available jobs when you are ready.
               </div>
             ) : (
               applications.map((app) => (

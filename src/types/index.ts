@@ -202,6 +202,8 @@ export interface AssessmentQuestion {
   skill?: Skill;
   title: string;
   statement: string;
+  question_type: 'MCQ' | 'CODING';
+  options: Array<{ id: string; text: string }>;
   constraints?: string;
   examples: Array<{ input: string; output: string; explanation?: string }>;
   starter_code: {
@@ -226,6 +228,7 @@ export interface Assessment {
   duration_minutes: number;
   total_points: number;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  question_count?: number;
   questions?: AssessmentQuestion[];
   created_at: string;
   updated_at?: string;
@@ -260,7 +263,7 @@ export interface Submission {
   id: string;
   attempt_id: string;
   question_id: string;
-  language: 'javascript' | 'python';
+  language: 'javascript' | 'python' | 'mcq';
   code: string;
   tests_passed: number;
   total_tests: number;
@@ -322,7 +325,15 @@ export interface AssessmentAttempt {
     status: IntegrityStatus;
   };
   technical_score?: number;
-  score_breakdown?: ScoreBreakdown;
+  score_breakdown?: ScoreBreakdown & {
+    skill_breakdown?: Array<{
+      skill_id: string;
+      skill_name: string;
+      earned: number;
+      maximum: number;
+      percentage: number;
+    }>;
+  };
   submissions?: Submission[];
   integrity_events?: IntegrityEvent[];
 }

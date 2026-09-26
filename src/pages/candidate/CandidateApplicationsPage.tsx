@@ -38,7 +38,7 @@ export const CandidateApplicationsPage: React.FC = () => {
         ) : (
           applications.map((app) => {
             // Find relevant assessment for this job if invited
-            const relatedAsmt = assessments.find((a) => a.job_id === app.job_id) || assessments[0];
+            const relatedAsmt = assessments.find((a) => a.job_id === app.job_id && a.status === 'PUBLISHED');
 
             return (
               <div

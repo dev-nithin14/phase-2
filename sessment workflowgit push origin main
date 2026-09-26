@@ -1,0 +1,19 @@
+ src/App.tsx                                        | 115 [32m++[m[31m-[m
+ src/components/assessment/AssessmentRunner.tsx     | 487 [31m-----------[m
+ src/components/layout/Navbar.tsx                   | 116 [32m+[m[31m--[m
+ src/context/AuthContext.tsx                        | 243 [32m++[m[31m----[m
+ src/pages/auth/LoginPage.tsx                       | 105 [32m+[m[31m--[m
+ src/pages/auth/RegisterPage.tsx                    |  32 [32m+[m[31m-[m
+ src/pages/candidate/CandidateApplicationsPage.tsx  |   2 [32m+[m[31m-[m
+ src/pages/candidate/CandidateAssessmentsPage.tsx   | 226 [31m-----[m
+ src/pages/candidate/CandidateDashboard.tsx         |  52 [32m+[m[31m-[m
+ src/pages/recruiter/CreateJobPage.tsx              |  53 [32m+[m[31m-[m
+ src/pages/recruiter/RecruiterAssessmentsPage.tsx   | 221 [31m-----[m
+ src/pages/recruiter/RecruiterDashboard.tsx         |  55 [32m+[m[31m-[m
+ src/pages/recruiter/RecruiterJobCandidatesPage.tsx |  28 [32m+[m[31m-[m
+ src/services/aiAgents.ts                           |  96 [32m+[m[31m--[m
+ src/services/demoData.ts                           | 941 [31m---------------------[m
+ src/services/store.ts                              | 184 [32m++[m[31m--[m
+ src/types/index.ts                                 |  15 [32m+[m[31m-[m
+ tsconfig.tsbuildinfo                               |   2 [32m+[m[31m-[m
+ 18 files changed, 428 insertions(+), 2545 deletions(-)

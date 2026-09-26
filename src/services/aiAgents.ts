@@ -1,4 +1,4 @@
-import { Job, Profile, ProfileSkill, Project, AssessmentAttempt, AssessmentQuestion, IntegrityEvent } from '../types';
+import { Job, Profile, ProfileSkill, Project, AssessmentAttempt, IntegrityEvent } from '../types';
 
 /**
  * Agent 1: Skill Matching Agent
@@ -50,100 +50,6 @@ export function runSkillMatchingAgent(params: {
     evidenceHighlights: highlights.length > 0 ? highlights : ['Technical profile demonstrates relevant experience'],
     recommendation,
   };
-}
-
-/**
- * Agent 2: Assessment Question Generator
- * Generates tailored coding problems. Requires recruiter review before publishing.
- */
-export function runAssessmentGeneratorAgent(params: {
-  role: string;
-  skills: string[];
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
-}): AssessmentQuestion[] {
-  const { role, skills, difficulty } = params;
-  const primarySkill = skills[0] || 'JavaScript';
-
-  return [
-    {
-      id: `gen_q_${Date.now()}_1`,
-      assessment_id: '',
-      title: `${primarySkill}: Dynamic Throttle & Cache Function`,
-      statement: `In modern ${role} applications, API rate limits are critical. Implement a cache-backed wrapper function \`solution(fn, ttlMs)\` that remembers results for identical arguments within a \`ttlMs\` sliding window and avoids redundant executions.`,
-      constraints: `• fn will always be a valid function returning a value\n• ttlMs >= 100 and <= 10000\n• Must handle primitive and array arguments`,
-      examples: [
-        {
-          input: '["computeTotal", 500]',
-          output: '"Cached result"',
-          explanation: 'Subsequent calls with identical inputs within 500ms return cached output without executing fn again.'
-        }
-      ],
-      starter_code: {
-        javascript: `// Implement cache-backed function wrapper\nfunction solution(fn, ttlMs) {\n  const cache = new Map();\n  return function(...args) {\n    const key = JSON.stringify(args);\n    const now = Date.now();\n    if (cache.has(key) && (now - cache.get(key).timestamp < ttlMs)) {\n      return cache.get(key).value;\n    }\n    const result = fn(...args);\n    cache.set(key, { value: result, timestamp: now });\n    return result;\n  };\n}`,
-        python: `# Implement cache-backed function wrapper\nimport time\ndef solution(fn, ttl_ms):\n    cache = {}\n    def wrapper(*args):\n        key = str(args)\n        now = time.time() * 1000\n        if key in cache and (now - cache[key]['time'] < ttl_ms):\n            return cache[key]['val']\n        res = fn(*args)\n        cache[key] = {'val': res, 'time': now}\n        return res\n    return wrapper`
-      },
-      test_cases: [
-        {
-          id: 'tc_1',
-          input: '[4, 6]',
-          expected_output: '10',
-          is_hidden: false,
-          explanation: 'Basic computation and return verification'
-        },
-        {
-          id: 'tc_2',
-          input: '[10, 20]',
-          expected_output: '30',
-          is_hidden: true,
-          explanation: 'Boundary arguments verification'
-        }
-      ],
-      difficulty,
-      points: 50,
-      time_limit_sec: 3,
-      memory_limit_mb: 256,
-      order_index: 1,
-    },
-    {
-      id: `gen_q_${Date.now()}_2`,
-      assessment_id: '',
-      title: `${skills[1] || 'Algorithm'}: Safe Nested Property Resolver`,
-      statement: `Build a safe object property extraction utility \`solution(obj, path, defaultValue)\` that traverses nested objects using dot-notation string paths without throwing TypeErrors on undefined segments.`,
-      constraints: `• path is a dot-separated string like 'user.profile.address.city'\n• If any node is undefined or null, return defaultValue\n• Must execute in O(N) where N is path depth`,
-      examples: [
-        {
-          input: '{"user": {"name": "Alex"}}, "user.name", "Default"',
-          output: '"Alex"',
-          explanation: 'Path correctly traverses and finds "Alex"'
-        }
-      ],
-      starter_code: {
-        javascript: `function solution(obj, path, defaultValue) {\n  if (!path || typeof path !== 'string') return defaultValue;\n  const keys = path.split('.');\n  let current = obj;\n  for (const key of keys) {\n    if (current == null) return defaultValue;\n    current = current[key];\n  }\n  return current !== undefined ? current : defaultValue;\n}`,
-        python: `def solution(obj, path, default_value):\n    if not path:\n        return default_value\n    keys = path.split('.')\n    current = obj\n    for key in keys:\n        if current is None or not isinstance(current, dict):\n            return default_value\n        current = current.get(key)\n    return current if current is not None else default_value`
-      },
-      test_cases: [
-        {
-          id: 'tc_3',
-          input: '{"a": {"b": 42}}, "a.b", 0',
-          expected_output: '42',
-          is_hidden: false,
-          explanation: 'Standard nested traversal'
-        },
-        {
-          id: 'tc_4',
-          input: '{"a": null}, "a.b.c", "fallback"',
-          expected_output: '"fallback"',
-          is_hidden: true,
-          explanation: 'Safe handling of null intermediate property'
-        }
-      ],
-      difficulty,
-      points: 50,
-      time_limit_sec: 3,
-      memory_limit_mb: 256,
-      order_index: 2,
-    }
-  ];
 }
 
 /**

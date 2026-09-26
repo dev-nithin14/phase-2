@@ -1,68 +1,35 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { appStore } from '../../services/store';
 import { 
-  ShieldCheck, Briefcase, FileCode2, Award, Bell, 
-  User, Building2, CheckCircle2, RotateCcw, ChevronDown, Check 
+  ShieldCheck, Briefcase, FileCode2, Award, Bell,
+  User, Building2, ChevronDown
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { user, role, switchUser, switchRole } = useAuth();
+  const { user, role, logout, isLoading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const notifications = user ? appStore.getNotifications(user.id) : [];
   const unreadCount = notifications.filter((n) => !n.is_read).length;
-  const allProfiles = appStore.getState().profiles;
 
   const handleMarkAsRead = (id: string) => {
     appStore.markNotificationAsRead(id);
   };
 
-  const handleResetDemo = () => {
-    if (window.confirm('Reset application data to realistic seed demo dataset?')) {
-      appStore.resetToDemoData();
-      window.location.reload();
-    }
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
   };
+
+  if (isLoading || !user || (role !== 'JOB_SEEKER' && role !== 'RECRUITER')) return null;
 
   return (
     <>
-      {/* Top Demo Testing Banner */}
-      <div className="role-switcher-banner">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Role Switcher (Hackathon Test Bar):</span>
-          <button
-            onClick={() => switchRole('JOB_SEEKER')}
-            className={`btn btn-sm ${role === 'JOB_SEEKER' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            Candidate View
-          </button>
-          <button
-            onClick={() => switchRole('RECRUITER')}
-            className={`btn btn-sm ${role === 'RECRUITER' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            Recruiter View
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-            Current: <strong style={{ color: 'var(--text-primary)' }}>{user?.full_name}</strong> ({role})
-          </span>
-          <button
-            onClick={handleResetDemo}
-            className="btn btn-sm btn-secondary"
-            title="Reset database to seed candidates, jobs, and evaluations"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}
-          >
-            <RotateCcw size={12} /> Reset Seed Data
-          </button>
-        </div>
-      </div>
-
       {/* Main Navbar */}
       <nav className="navbar">
         <div className="nav-inner">
@@ -76,10 +43,6 @@ export const Navbar: React.FC = () => {
 
           {/* Navigation Links */}
           <ul className="nav-links">
-            <Link to="/jobs" className={`nav-link ${location.pathname === '/jobs' ? 'active' : ''}`}>
-              <Briefcase size={16} /> Explore Jobs
-            </Link>
-
             {role === 'JOB_SEEKER' ? (
               <>
                 <Link to="/candidate/dashboard" className={`nav-link ${location.pathname === '/candidate/dashboard' ? 'active' : ''}`}>
@@ -99,6 +62,9 @@ export const Navbar: React.FC = () => {
                 </Link>
                 <Link to="/candidate/assessments" className={`nav-link ${location.pathname.startsWith('/candidate/assessments') ? 'active' : ''}`}>
                   Assessments
+                </Link>
+                <Link to="/jobs" className={`nav-link ${location.pathname.startsWith('/jobs') ? 'active' : ''}`}>
+                  <Briefcase size={16} /> Explore Jobs
                 </Link>
               </>
             ) : (
@@ -208,7 +174,7 @@ export const Navbar: React.FC = () => {
               )}
             </div>
 
-            {/* User Profile Menu Switcher */}
+            {/* Authenticated profile menu */}
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
@@ -244,62 +210,26 @@ export const Navbar: React.FC = () => {
                   }}
                 >
                   <div style={{ paddingBottom: '0.6rem', marginBottom: '0.6rem', borderBottom: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{user?.full_name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user?.email}</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{user.full_name}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user.email}</div>
                     <div style={{ marginTop: '0.4rem' }}>
-                      <span className={`badge ${user?.role === 'JOB_SEEKER' ? 'badge-verified' : 'badge-accent'}`}>
-                        {user?.role}
+                      <span className={`badge ${role === 'JOB_SEEKER' ? 'badge-verified' : 'badge-accent'}`}>
+                        {role === 'JOB_SEEKER' ? 'CANDIDATE' : role}
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
-                    Quick Switch Identity:
-                  </div>
-
-                  <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    {allProfiles.map((p) => (
-                      <div
-                        key={p.id}
-                        onClick={() => {
-                          switchUser(p.id);
-                          setShowUserMenu(false);
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0.45rem 0.6rem',
-                          borderRadius: 'var(--radius-sm)',
-                          background: user?.id === p.id ? 'var(--bg-elevated)' : 'transparent',
-                          cursor: 'pointer',
-                          fontSize: '0.825rem',
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: user?.id === p.id ? 700 : 500 }}>{p.full_name}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{p.role}</div>
-                        </div>
-                        {user?.id === p.id && <Check size={14} color="var(--status-verified)" />}
-                      </div>
-                    ))}
-                  </div>
-
                   <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     <Link
-                      to="/login"
+                      to={role === 'RECRUITER' ? '/recruiter/company' : '/candidate/profile'}
                       onClick={() => setShowUserMenu(false)}
                       style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', textDecoration: 'none' }}
                     >
-                      Sign In with Supabase Account
+                      Profile
                     </Link>
-                    <Link
-                      to="/register"
-                      onClick={() => setShowUserMenu(false)}
-                      style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontWeight: 600 }}
-                    >
-                      + Create New Account
-                    </Link>
+                    <button className="btn btn-secondary btn-sm" onClick={handleLogout}>
+                      Sign Out
+                    </button>
                   </div>
                 </div>
               )}

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { appStore } from '../../services/store';
+import { inviteApplicantToAssessment } from '../../services/assessmentService';
 import { rankCandidatesForJob } from '../../services/matching';
 import { VerificationBadge, IntegrityBadge } from '../../components/common/Badge';
 import { 
@@ -11,6 +13,7 @@ import {
 import { Job } from '../../types';
 
 export const RecruiterJobCandidatesPage: React.FC = () => {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const [job, setJob] = useState<Job | undefined>(() => id ? appStore.getJob(id) : undefined);
   const [loadingJob, setLoadingJob] = useState(!job);
@@ -83,15 +86,24 @@ export const RecruiterJobCandidatesPage: React.FC = () => {
     setTimeout(() => setActionNotice(null), 3000);
   };
 
-  const handleInviteAssessment = (candId: string) => {
-    const relatedAsmt = assessments.find((a) => a.job_id === job.id) || assessments[0];
-    const app = appStore.getState().applications.find((a) => a.job_id === job.id && a.candidate_id === candId)
-      || appStore.applyToJob(job.id, candId);
-    if (relatedAsmt) {
-      appStore.inviteCandidateToAssessment(relatedAsmt.id, app.id);
-      setActionNotice(`Technical assessment invitation sent to candidate!`);
-      setTimeout(() => setActionNotice(null), 3000);
+  const handleInviteAssessment = async (candId: string) => {
+    const relatedAsmt = assessments.find((assessment) => assessment.job_id === job.id && assessment.status === 'PUBLISHED');
+    const app = appStore.getState().applications.find((application) => application.job_id === job.id && application.candidate_id === candId);
+    if (!relatedAsmt || !user) {
+      setActionNotice('Publish an assessment for this job before inviting a candidate.');
+      return;
     }
+    if (!app) {
+      setActionNotice('Only applicants for this job can be invited to its assessment.');
+      return;
+    }
+    try {
+      await inviteApplicantToAssessment({ assessmentId: relatedAsmt.id, recruiterId: user.id, applicationId: app.id });
+      setActionNotice('Assessment invitation sent to the applicant.');
+    } catch (inviteError) {
+      setActionNotice(inviteError instanceof Error ? inviteError.message : 'Could not send the assessment invitation.');
+    }
+    setTimeout(() => setActionNotice(null), 4000);
   };
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { appStore } from '../../services/store';
@@ -8,22 +8,29 @@ import { Briefcase, ArrowLeft, Plus, Trash2, CheckCircle2, AlertTriangle } from 
 export const CreateJobPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [, setStoreRevision] = useState(0);
   const allSkills = appStore.getState().skills;
   const companies = appStore.getState().companies;
 
+  useEffect(() => {
+    const unsubscribe = appStore.subscribe(() => setStoreRevision((revision) => revision + 1));
+    void appStore.syncFromSupabase();
+    return unsubscribe;
+  }, []);
+
   const [formData, setFormData] = useState({
-    title: 'Senior Frontend Developer',
-    description: 'We are seeking an experienced Frontend Developer to lead client architecture, component optimizations, and state management.',
+    title: '',
+    description: '',
     company_id: companies[0]?.id || '',
     employment_type: 'FULL_TIME' as const,
-    location: 'Mysuru, Karnataka',
+    location: '',
     work_mode: 'HYBRID' as const,
-    min_experience: 3,
-    max_experience: 6,
-    min_salary: 1800000,
-    max_salary: 2800000,
+    min_experience: 0,
+    max_experience: 0,
+    min_salary: 0,
+    max_salary: 0,
     salary_currency: 'INR',
-    deadline: '2026-11-30T23:59:59Z',
+    deadline: '',
     status: 'PUBLISHED' as const,
     assessment_required: true,
   });
@@ -37,12 +44,7 @@ export const CreateJobPage: React.FC = () => {
         { skill_id: allSkills[3].id, weight: 15, is_required: true, min_acceptable_score: 65 },
       ];
     }
-    return [
-      { skill_id: 'f2ee449f-093d-4ec9-b61e-0455ab2e9fe2', weight: 40, is_required: true, min_acceptable_score: 75 },
-      { skill_id: '6cea9325-b180-4551-ae7c-a4d0a20f1f2c', weight: 25, is_required: true, min_acceptable_score: 70 },
-      { skill_id: '55a5d36c-1b07-4097-a5ec-58bf787a0d18', weight: 20, is_required: true, min_acceptable_score: 70 },
-      { skill_id: '7381485a-10a5-4847-a1fd-ac6ceab78196', weight: 15, is_required: true, min_acceptable_score: 65 },
-    ];
+    return [];
   });
 
   const [loading, setLoading] = useState(false);
@@ -78,6 +80,14 @@ export const CreateJobPage: React.FC = () => {
       setErrorMsg(`Skill weights must sum to precisely 100%. Currently: ${totalWeight}%`);
       return;
     }
+    if (!companies.some((company) => company.id === formData.company_id)) {
+      setErrorMsg('Add a company profile before publishing a job.');
+      return;
+    }
+    if (skillsConfig.length === 0) {
+      setErrorMsg('Add at least one skill from the available skill catalog.');
+      return;
+    }
 
     setLoading(true);
     setErrorMsg(null);
@@ -93,11 +103,12 @@ export const CreateJobPage: React.FC = () => {
         min_acceptable_score: sc.min_acceptable_score,
       }));
 
-      const targetCompany = companies.find((c) => c.id === formData.company_id) || companies[0];
+      const targetCompany = companies.find((c) => c.id === formData.company_id);
+      if (!targetCompany) throw new Error('Select a company profile before publishing this job.');
 
       const created = await appStore.createJob({
         ...formData,
-        company_id: targetCompany?.id || 'e1000000-0000-0000-0000-000000000001',
+        company_id: targetCompany.id,
         company: targetCompany,
         recruiter_id: user.id,
         skills: compiledSkills,
@@ -149,6 +160,7 @@ export const CreateJobPage: React.FC = () => {
         <div className="form-group">
           <label className="form-label">Company</label>
           <select
+            required
             value={formData.company_id}
             onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
             className="form-select"
@@ -159,6 +171,11 @@ export const CreateJobPage: React.FC = () => {
               </option>
             ))}
           </select>
+          {companies.length === 0 && (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.4rem' }}>
+              No company profile is available yet. Add one in Company settings before publishing a job.
+            </p>
+          )}
         </div>
 
         <div className="form-group">
@@ -333,7 +350,7 @@ export const CreateJobPage: React.FC = () => {
           className="btn btn-primary btn-lg"
           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
         >
-          {loading ? 'Persisting to Supabase Database...' : 'Publish Job & Calculate Candidate Matches'}
+          {loading ? 'Publishing job...' : 'Publish Job & Calculate Candidate Matches'}
         </button>
       </form>
     </div>
