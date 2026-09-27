@@ -34,12 +34,17 @@ export const Navbar: React.FC = () => {
       <nav className="navbar">
         <div className="nav-inner">
           {/* Brand */}
-          <Link to="/" className="brand-logo">
-            <div className="brand-icon">
-              <ShieldCheck size={20} color="#fff" />
-            </div>
-            <span>Beyond<span style={{ color: 'var(--accent-primary)' }}>TheResume</span></span>
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Link to="/" className="brand-logo">
+              <div className="brand-icon">
+                <ShieldCheck size={20} color="#07111F" />
+              </div>
+              <span>Beyond<span style={{ color: 'var(--accent-primary)' }}>TheResume</span></span>
+            </Link>
+            <span className="hackmysuru-badge" style={{ padding: '0.2rem 0.55rem', fontSize: '0.65rem' }}>
+              HackMysuru 1.0
+            </span>
+          </div>
 
           {/* Navigation Links */}
           <ul className="nav-links">

@@ -348,7 +348,7 @@ class Store {
     const candidate = this.state.profiles.find((p) => p.id === candidateId);
     const cSkills = this.getCandidateSkills(candidateId);
     const cProjects = this.getCandidateProjects(candidateId);
-    const match = job && candidate ? calculateJobMatch(job, candidate, cSkills, cProjects) : { overallScore: 75 };
+    const match = job && candidate ? calculateJobMatch(job, candidate, cSkills, cProjects) : { overallScore: 0 };
 
     const newApp: Application = {
       id: `app_${Date.now()}`,

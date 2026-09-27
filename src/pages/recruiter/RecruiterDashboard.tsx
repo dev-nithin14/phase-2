@@ -33,6 +33,25 @@ export const RecruiterDashboard: React.FC = () => {
 
   return (
     <div className="main-content">
+      {/* HackMysuru 1.0 Presentation Banner */}
+      <div className="hackmysuru-banner">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{ fontSize: '1.4rem' }}>🏛️</span>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span className="hackmysuru-badge">HackMysuru 1.0 · Sept 2026</span>
+              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Presented by RankBook</span>
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#F8FAFC', fontWeight: 600, marginTop: '0.2rem' }}>
+              Mysuru, Karnataka · Technical Talent Acquisition & Evidence Review
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--accent-primary)' }}>
+          <ShieldCheck size={16} /> Verified Candidate Ranking Active
+        </div>
+      </div>
+
       {/* Recruiter Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>

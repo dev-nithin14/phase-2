@@ -80,9 +80,14 @@ export const RegisterPage: React.FC = () => {
   return (
     <div className="main-content" style={{ maxWidth: '520px', marginTop: '2rem', marginBottom: '3rem' }}>
       <div className="card" style={{ border: '1px solid var(--border-accent)', padding: '2.5rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <span className="hackmysuru-badge" style={{ fontSize: '0.7rem' }}>
+              🏛️ Mysuru · Karnataka · Sept 2026 | Presented by RankBook | HackMysuru 1.0
+            </span>
+          </div>
           <div className="brand-icon" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
-            <ShieldCheck size={26} color="#fff" />
+            <ShieldCheck size={26} color="#07111F" />
           </div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Create Your Account</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>

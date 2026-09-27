@@ -73,12 +73,18 @@ export const SkillPassportCard: React.FC<SkillPassportCardProps> = ({
               textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#A5B4FC', fontWeight: 700, letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#00D4FF', fontWeight: 700, letterSpacing: '0.05em' }}>
               Verified Index
             </div>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: '#fff', lineHeight: 1.1 }}>
-              {passport.overall_rating}
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 500 }}>/100</span>
+            <div style={{ fontSize: passport.overall_rating > 0 ? '2rem' : '1.1rem', fontWeight: 800, color: '#fff', lineHeight: 1.1, marginTop: '0.2rem' }}>
+              {passport.overall_rating > 0 ? (
+                <>
+                  {passport.overall_rating}
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 500 }}>/100</span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Awaiting Assessment Proof</span>
+              )}
             </div>
           </div>
 

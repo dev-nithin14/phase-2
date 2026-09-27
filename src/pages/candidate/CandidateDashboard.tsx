@@ -29,6 +29,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { SkillPassportCard } from '../../components/passport/SkillPassportCard';
+import { calculateProfileCompletion } from '../../services/scoring/scoringEngine';
 
 export const CandidateDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -86,15 +87,14 @@ export const CandidateDashboard: React.FC = () => {
   const attempts = storeState.attempts.filter((a) => a.candidate_id === user.id);
   const applications = storeState.applications.filter((a) => a.candidate_id === user.id);
 
-  // Profile completion calculation
-  const completedProfileSteps = [
-    Boolean(user.full_name),
-    Boolean(user.bio),
-    Boolean(user.github_url || user.portfolio_url),
-    candidateSkills.length > 0,
-    candidateProjects.length > 0,
-  ].filter(Boolean).length;
-  const completionPct = Math.round((completedProfileSteps / 5) * 100);
+  // Profile completion calculation via deterministic scoring engine
+  const profileCompletion = calculateProfileCompletion(
+    user,
+    candidateSkills.length,
+    candidateProjects.length,
+    attempts.length
+  );
+  const completionPct = profileCompletion.percentage;
 
   const referralUrl = referralCode ? getReferralUrl(referralCode) : '';
 
@@ -151,6 +151,25 @@ export const CandidateDashboard: React.FC = () => {
 
   return (
     <div className="main-content" style={{ maxWidth: 1140 }}>
+      {/* HackMysuru 1.0 Presentation Banner */}
+      <div className="hackmysuru-banner">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{ fontSize: '1.4rem' }}>🏛️</span>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span className="hackmysuru-badge">HackMysuru 1.0 · Sept 2026</span>
+              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Presented by RankBook</span>
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#F8FAFC', fontWeight: 600, marginTop: '0.2rem' }}>
+              Mysuru, Karnataka · Verified Candidate Hiring Portal
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--accent-primary)' }}>
+          <Sparkles size={14} /> Deterministic Skill Verification Active
+        </div>
+      </div>
+
       {/* Header Greeting */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
         <div>
@@ -406,15 +425,21 @@ export const CandidateDashboard: React.FC = () => {
                     {job.match_percentage !== undefined && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Platform Match:</span>
-                        <span
-                          style={{
-                            fontWeight: 800,
-                            fontSize: '0.85rem',
-                            color: job.match_percentage >= 80 ? 'var(--status-verified)' : '#f59e0b',
-                          }}
-                        >
-                          {job.match_percentage}%
-                        </span>
+                        {job.match_percentage !== null ? (
+                          <span
+                            style={{
+                              fontWeight: 800,
+                              fontSize: '0.85rem',
+                              color: job.match_percentage >= 80 ? 'var(--status-verified)' : job.match_percentage >= 50 ? '#f59e0b' : 'var(--text-muted)',
+                            }}
+                          >
+                            {job.match_percentage}%
+                          </span>
+                        ) : (
+                          <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                            Not enough data
+                          </span>
+                        )}
                       </div>
                     )}
 

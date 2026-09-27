@@ -8,15 +8,18 @@ export const Footer: React.FC = () => {
         <div style={{ maxWidth: '380px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem', fontWeight: 800, fontSize: '1.2rem' }}>
             <div className="brand-icon" style={{ width: '28px', height: '28px' }}>
-              <ShieldCheck size={16} color="#fff" />
+              <ShieldCheck size={16} color="#07111F" />
             </div>
             <span>Beyond<span style={{ color: 'var(--accent-primary)' }}>TheResume</span></span>
           </div>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
             Evidence-backed technical hiring platform. Don't just claim your skills. Prove them through verified assessments, project evidence, and deterministic matching.
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            <Terminal size={14} /> HackMysuru 1.0 · Phase 2 Production Build
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-gold-light)', fontWeight: 600 }}>
+              <Terminal size={14} /> HACKMYSURU 1.0 · PRESENTED BY RANKBOOK
+            </div>
+            <div>MYSURU · KARNATAKA · SEPTEMBER 2026</div>
           </div>
         </div>
 
@@ -53,8 +56,13 @@ export const Footer: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ maxWidth: '1400px', margin: '2rem auto 0', paddingTop: '1.5rem', borderTop: '1px solid var(--border-subtle)', textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-        © 2026 Beyond the Resume. Built for HackMysuru 1.0 Phase 2.
+      <div style={{ maxWidth: '1400px', margin: '2rem auto 0', paddingTop: '1.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+        <div>© 2026 Beyond the Resume. All rights reserved.</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <span className="hackmysuru-badge" style={{ padding: '0.2rem 0.6rem', fontSize: '0.68rem' }}>
+            🏛️ Mysuru · Karnataka · Sept 2026 | HackMysuru 1.0 | RankBook
+          </span>
+        </div>
       </div>
     </footer>
   );

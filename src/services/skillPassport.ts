@@ -77,17 +77,17 @@ export function buildSkillPassport(
     };
   });
 
-  // Calculate overall rating
-  const assessedSkills = passportSkills.filter((s) => s.assessed_score !== undefined);
+  // Calculate overall rating: deterministic average of assessed skill scores
+  const assessedSkills = passportSkills.filter((s) => s.assessed_score !== undefined && s.assessed_score !== null);
   const overallRating = assessedSkills.length > 0
     ? Math.round(assessedSkills.reduce((acc, s) => acc + (s.assessed_score || 0), 0) / assessedSkills.length)
-    : 78;
+    : 0;
 
-  // Build assessment history
+  // Build assessment history with genuine scores
   const assessmentHistory = completedAttempts.map((att) => ({
     title: att.assessment?.title || 'Coding Evaluation',
     job_title: att.assessment?.job?.title,
-    score: att.technical_score || 85,
+    score: att.technical_score ?? 0,
     date: att.submitted_at || att.started_at,
     integrity_status: att.integrity_status,
   }));

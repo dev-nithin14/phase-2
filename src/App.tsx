@@ -20,6 +20,7 @@ import { CandidateProjectsPage } from './pages/candidate/CandidateProjectsPage';
 import { CandidateApplicationsPage } from './pages/candidate/CandidateApplicationsPage';
 import { CandidateAssessmentWorkspacePage } from './pages/candidate/CandidateAssessmentWorkspacePage';
 import { PhoneCameraPage } from './pages/candidate/PhoneCameraPage';
+import { PhoneCameraTestPage } from './pages/candidate/PhoneCameraTestPage';
 
 // Recruiter Portal
 import { RecruiterDashboard } from './pages/recruiter/RecruiterDashboard';
@@ -67,7 +68,16 @@ const UnsupportedRoleRoute: React.FC = () => {
 
 const ConditionalFooter: React.FC = () => {
   const { pathname } = useLocation();
-  if (pathname === '/login' || pathname === '/register' || pathname === '/signup' || pathname === '/verify-otp' || pathname === '/assessment/phone-camera') return null;
+  if (
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/signup' ||
+    pathname === '/verify-otp' ||
+    pathname === '/assessment/phone-camera' ||
+    pathname === '/assessment/phone-camera-test'
+  ) {
+    return null;
+  }
   return <Footer />;
 };
 
@@ -85,6 +95,7 @@ export const App: React.FC = () => {
             <Route path="/signup" element={<AuthEntry><RegisterPage /></AuthEntry>} />
             <Route path="/verify-otp" element={<AuthEntry><LoginPage /></AuthEntry>} />
             <Route path="/assessment/phone-camera" element={<PhoneCameraPage />} />
+            <Route path="/assessment/phone-camera-test" element={<PhoneCameraTestPage />} />
             <Route path="/admin/dashboard" element={<ProtectedRoute role="ADMIN"><AdminDashboard /></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute role="JOB_SEEKER"><CandidateProfilePage /></ProtectedRoute>} />
 

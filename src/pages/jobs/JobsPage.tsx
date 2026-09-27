@@ -343,15 +343,21 @@ export const JobsPage: React.FC = () => {
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                           Platform Match:
                         </span>
-                        <span
-                          style={{
-                            fontWeight: 800,
-                            fontSize: '0.95rem',
-                            color: job.match_percentage >= 80 ? 'var(--status-verified)' : job.match_percentage >= 60 ? '#f59e0b' : 'var(--text-muted)',
-                          }}
-                        >
-                          {job.match_percentage}%
-                        </span>
+                        {job.match_percentage !== null ? (
+                          <span
+                            style={{
+                              fontWeight: 800,
+                              fontSize: '0.95rem',
+                              color: job.match_percentage >= 80 ? 'var(--status-verified)' : job.match_percentage >= 50 ? '#f59e0b' : 'var(--text-muted)',
+                            }}
+                          >
+                            {job.match_percentage}%
+                          </span>
+                        ) : (
+                          <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>
+                            Not enough data
+                          </span>
+                        )}
                       </div>
 
                       {/* Matching and Gap Signals */}

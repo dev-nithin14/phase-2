@@ -799,23 +799,105 @@ export const RecruiterAssessmentResultsPage: React.FC = () => {
                 </div>
               )}
 
-              {/* TAB 3: Phone Camera */}
+              {/* TAB 3: External Phone Camera */}
               {evidenceTab === 'phone' && (
                 <div>
-                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 8 }}>Secondary Physical Phone Camera View</h4>
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 8 }}>
+                    External Environment Camera Telemetry
+                  </h4>
+
+                  {/* Connection Status Card */}
                   <div className="card" style={{ background: 'var(--bg-surface)', marginBottom: 14 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Smartphone size={20} color={selectedAttemptForEvidence.integrity_summary?.phone_camera_connected ? 'var(--status-verified)' : 'var(--text-muted)'} />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                       <div>
-                        <strong>Connection Status: </strong>
-                        <span style={{ color: selectedAttemptForEvidence.integrity_summary?.phone_camera_connected ? 'var(--status-verified)' : 'var(--text-muted)', fontWeight: 700 }}>
-                          {selectedAttemptForEvidence.integrity_summary?.phone_camera_connected ? 'Connected during session' : 'Not paired (Optional)'}
-                        </span>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Connection Status</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                          <Smartphone size={16} color={selectedAttemptForEvidence.integrity_summary?.phone_camera_connected ? 'var(--status-verified)' : 'var(--text-muted)'} />
+                          <span style={{ color: selectedAttemptForEvidence.integrity_summary?.phone_camera_connected ? 'var(--status-verified)' : 'var(--text-muted)', fontWeight: 700, fontSize: '0.95rem' }}>
+                            {selectedAttemptForEvidence.integrity_summary?.phone_camera_connected ? 'Connected (Verified Session)' : 'Not Paired / Offline'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Attempt ID</div>
+                        <div style={{ fontSize: '0.85rem', fontFamily: 'monospace', marginTop: 4, color: '#F8FAFC' }}>
+                          {selectedAttemptForEvidence.id}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Session Started</div>
+                        <div style={{ fontSize: '0.85rem', marginTop: 4, color: '#F8FAFC' }}>
+                          {new Date(selectedAttemptForEvidence.started_at).toLocaleTimeString()}
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    When paired, the candidate's mobile device acts as an independent external camera streaming periodic telemetry and workspace visibility heartbeats.
+
+                  {/* Technical Event Timeline for External Camera */}
+                  <div className="card" style={{ background: 'var(--bg-surface)', marginBottom: 14 }}>
+                    <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-primary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      External Camera Event Timeline
+                    </h5>
+
+                    {(() => {
+                      const pEvents = (selectedAttemptForEvidence.integrity_events || []).filter(
+                        (e) => e.event_type.startsWith('PHONE_') || e.event_type.includes('PHONE')
+                      );
+
+                      if (pEvents.length === 0) {
+                        return (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '8px 0' }}>
+                            {selectedAttemptForEvidence.integrity_summary?.phone_camera_connected
+                              ? 'External camera heartbeat active during evaluation.'
+                              : 'No phone camera events were logged for this session.'}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {pEvents.map((evt, idx) => (
+                            <div
+                              key={evt.id || idx}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '6px 10px',
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                borderRadius: '6px',
+                                fontSize: '0.78rem',
+                                borderLeft: `3px solid ${
+                                  evt.event_type === 'PHONE_CAMERA_CONNECTED'
+                                    ? 'var(--status-verified)'
+                                    : evt.event_type === 'PHONE_CAMERA_DISCONNECTED'
+                                    ? '#EF4444'
+                                    : 'var(--accent-cyan)'
+                                }`,
+                              }}
+                            >
+                              <div>
+                                <strong style={{ color: '#F8FAFC' }}>{evt.event_type}</strong>
+                                {typeof (evt.metadata as any)?.device === 'string' && (
+                                  <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>
+                                    ({String((evt.metadata as any).device).slice(0, 45)}…)
+                                  </span>
+                                )}
+                              </div>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                                {new Date(evt.timestamp).toLocaleTimeString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                    <strong>Evidence Standard:</strong> The external mobile camera provides physical workspace and environmental visibility around the laptop. It does not perform automated website tracking or automated judgment.
                   </p>
                 </div>
               )}

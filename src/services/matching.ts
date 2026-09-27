@@ -110,9 +110,11 @@ export function calculateJobMatch(
     }
   }
 
-  const normalizedSkillScore = totalSkillWeight > 0 
+  const matchedSkillCount = Object.values(skillBreakdown).filter((s) => s.candidateScore > 0).length;
+
+  const normalizedSkillScore = totalSkillWeight > 0 && matchedSkillCount > 0
     ? Math.round(totalWeightedSkillScore / totalSkillWeight) 
-    : 70;
+    : 0;
 
   // 2. Experience Match (15% total weight of match)
   const reqMinExp = job.min_experience || 0;
@@ -120,49 +122,64 @@ export function calculateJobMatch(
   let experienceScore = 100;
   if (candidateExp < reqMinExp) {
     const deficit = reqMinExp - candidateExp;
-    experienceScore = Math.max(30, Math.round(100 - deficit * 20));
+    experienceScore = Math.max(0, Math.round(100 - deficit * 25));
   } else if (job.max_experience && candidateExp > job.max_experience + 3) {
     // Slight overqualification factor
     experienceScore = 90;
   }
 
   // 3. Location & Work Mode Match (15% total weight of match)
-  let locationScore = 80;
+  let locationScore = 0;
   if (job.work_mode === 'REMOTE' || candidate.preferred_location === 'REMOTE') {
     locationScore = 100;
-  } else if (job.work_mode === candidate.preferred_location) {
+  } else if (candidate.preferred_location && job.work_mode === candidate.preferred_location) {
     locationScore = 100;
   } else if (candidate.location && job.location && candidate.location.toLowerCase().includes(job.location.toLowerCase())) {
     locationScore = 95;
+  } else if (job.location) {
+    locationScore = 40;
   } else {
-    locationScore = 70;
+    locationScore = 50;
   }
 
-  // Final Overall Weighted Score: 70% Skills + 15% Experience + 15% Location/Work Mode
-  const finalScore = Math.round(
-    normalizedSkillScore * 0.70 + 
-    experienceScore * 0.15 + 
-    locationScore * 0.15
-  );
+  // Final Overall Weighted Score:
+  // CRITICAL RULE: If 0 skills matched from requirements, overall match is strictly 0%.
+  // Candidates cannot earn 25-30% by merely being in the same city or having unverified years.
+  let finalScore = 0;
+  if (jobSkills.length > 0 && matchedSkillCount === 0) {
+    finalScore = 0;
+  } else if (jobSkills.length === 0 && (!candidateSkills || candidateSkills.length === 0)) {
+    finalScore = 0;
+  } else {
+    finalScore = Math.round(
+      normalizedSkillScore * 0.70 + 
+      experienceScore * 0.15 + 
+      locationScore * 0.15
+    );
+  }
 
   // Evidence summary generation
   const assessedSkills = Object.values(skillBreakdown).filter((s) => s.isAssessed);
   const evidenceBackedSkills = Object.values(skillBreakdown).filter((s) => s.verificationStatus !== 'SELF_DECLARED');
   
   const summaryParts: string[] = [];
-  if (assessedSkills.length > 0) {
-    summaryParts.push(`${assessedSkills.length} required skill(s) validated by verified assessment`);
-  }
-  if (evidenceBackedSkills.length > 0) {
-    summaryParts.push(`${evidenceBackedSkills.length} skill(s) backed by project repositories`);
+  if (matchedSkillCount === 0) {
+    summaryParts.push('0 matching skills found in candidate profile or projects');
+  } else {
+    if (assessedSkills.length > 0) {
+      summaryParts.push(`${assessedSkills.length} required skill(s) validated by verified assessment`);
+    }
+    if (evidenceBackedSkills.length > 0) {
+      summaryParts.push(`${evidenceBackedSkills.length} skill(s) backed by project repositories`);
+    }
   }
   summaryParts.push(`${candidateExp} yr(s) exp against ${reqMinExp}+ yr(s) required`);
 
   return {
     overallScore: Math.min(100, Math.max(0, finalScore)),
     skillScore: normalizedSkillScore,
-    experienceScore,
-    locationScore,
+    experienceScore: matchedSkillCount > 0 ? experienceScore : 0,
+    locationScore: matchedSkillCount > 0 ? locationScore : 0,
     skillBreakdown,
     evidenceSummary: summaryParts.join(' • '),
     isStrongMatch: finalScore >= 80,

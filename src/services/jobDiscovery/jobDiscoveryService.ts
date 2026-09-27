@@ -59,6 +59,8 @@ export async function searchAggregatedJobs(
   }
 }
 
+import { calculatePlatformJobMatch } from '../scoring/scoringEngine';
+
 /**
  * Calculates transparent "Platform Match" with Candidate's Skill Passport
  */
@@ -66,49 +68,23 @@ export function enrichJobWithPlatformMatch(job: NormalizedJob, profile: Profile)
   const profileAny = profile as any;
   const rawSkills: any[] = profileAny.skills || profileAny.profile_skills || [];
   const candidateSkills: string[] = rawSkills.map((s: any) =>
-    (typeof s === 'string' ? s : s.name || s.skill?.name || '').toLowerCase()
+    typeof s === 'string' ? s : s.name || s.skill?.name || ''
   ).filter(Boolean);
-  const requiredSkills = job.required_skills || [];
 
-  if (requiredSkills.length === 0) {
-    return {
-      ...job,
-      match_percentage: 70,
-      match_reasons: ['Base profile match on experience level'],
-      missing_skills: [],
-    };
-  }
-
-  const matching: string[] = [];
-  const missing: string[] = [];
-
-  for (const req of requiredSkills) {
-    const isMatched = candidateSkills.some(
-      (cSkill) => cSkill.includes(req.toLowerCase()) || req.toLowerCase().includes(cSkill)
-    );
-    if (isMatched) {
-      matching.push(req);
-    } else {
-      missing.push(req);
-    }
-  }
-
-  const skillMatchRatio = matching.length / requiredSkills.length;
-  // Weight skill match 80%, experience alignment 20%
-  const experienceBonus = (profile.experience_years || 0) >= 2 ? 15 : 10;
-  const rawScore = Math.round(skillMatchRatio * 80 + experienceBonus);
-  const matchPercentage = Math.min(98, Math.max(35, rawScore));
-
-  const reasons = matching.map((s) => `✓ ${s}`);
-  if (profile.experience_years && profile.experience_years > 0) {
-    reasons.push(`✓ ${profile.experience_years} years verified experience`);
-  }
+  const matchRes = calculatePlatformJobMatch(
+    {
+      title: job.title,
+      required_skills: job.required_skills,
+    },
+    profile,
+    candidateSkills
+  );
 
   return {
     ...job,
-    match_percentage: matchPercentage,
-    match_reasons: reasons,
-    missing_skills: missing.map((s) => `○ ${s}`),
+    match_percentage: matchRes.value !== null ? matchRes.value : undefined,
+    match_reasons: matchRes.evidence,
+    missing_skills: matchRes.missingSkills.map((s) => `○ ${s}`),
   };
 }
 

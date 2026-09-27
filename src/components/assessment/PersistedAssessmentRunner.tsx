@@ -113,6 +113,8 @@ export const PersistedAssessmentRunner: React.FC<PersistedAssessmentRunnerProps>
   // Phone Camera & Real QR Code State
   const [phonePairing, setPhonePairing] = useState<PhonePairingSession | null>(null);
   const [phoneConnected, setPhoneConnected] = useState(false);
+  const [phoneHeartbeatSecondsAgo, setPhoneHeartbeatSecondsAgo] = useState<number | null>(null);
+  const [phoneDeviceInfo, setPhoneDeviceInfo] = useState<string>('');
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [qrExpiresSeconds, setQrExpiresSeconds] = useState(1800); // 30 minutes
@@ -284,41 +286,38 @@ export const PersistedAssessmentRunner: React.FC<PersistedAssessmentRunnerProps>
     return () => window.clearInterval(timer);
   }, [attempt, assessment.duration_minutes, hasStarted]);
 
-  // Secondary Phone Camera Cross-Device Heartbeat Listener (Supabase Realtime + Remote Polling)
+  // External Environment Phone Camera Cross-Device Heartbeat Listener (Supabase Realtime + Remote Polling)
   useEffect(() => {
-    if (!attempt) return;
+    if (!attempt?.id) return;
     let wasConnected = phoneConnected;
 
     const unsub = listenToPhoneHeartbeat(attempt.id, (heartbeat) => {
-      if (heartbeat.connected && !wasConnected) {
-        wasConnected = true;
-        setPhoneConnected(true);
-        void recordEvent('PHONE_CAMERA_CONNECTED', 'LOW', {
-          device: heartbeat.device,
-          fps: heartbeat.fps,
-        });
+      setPhoneHeartbeatSecondsAgo(heartbeat.secondsAgo);
+      if (heartbeat.device) setPhoneDeviceInfo(heartbeat.device);
+
+      if (heartbeat.connected !== wasConnected) {
+        wasConnected = heartbeat.connected;
+        setPhoneConnected(heartbeat.connected);
+
+        if (heartbeat.connected) {
+          void recordEvent('PHONE_CAMERA_CONNECTED', 'LOW', {
+            device: heartbeat.device,
+            timestamp: heartbeat.lastHeartbeat,
+          });
+          setActiveWarning(null);
+        } else {
+          void recordEvent('PHONE_CAMERA_DISCONNECTED', 'MEDIUM', {
+            reason: 'Heartbeat timeout',
+            lastHeartbeat: heartbeat.lastHeartbeat,
+            secondsAgo: heartbeat.secondsAgo,
+          });
+          setActiveWarning('External phone camera disconnected. Please ensure your phone camera screen remains open.');
+        }
       }
     });
 
-    const statusCheckInterval = window.setInterval(() => {
-      const isOnline = checkPhoneStatus(attempt.id);
-      if (isOnline !== wasConnected) {
-        wasConnected = isOnline;
-        setPhoneConnected(isOnline);
-        if (!isOnline) {
-          void recordEvent('PHONE_CAMERA_DISCONNECTED', 'MEDIUM', {
-            reason: 'Heartbeat timeout',
-          });
-          setActiveWarning('Secondary phone camera disconnected. Please ensure your phone camera screen remains open.');
-        } else {
-          void recordEvent('PHONE_CAMERA_RECONNECTED', 'LOW');
-        }
-      }
-    }, 3000);
-
     return () => {
       unsub();
-      window.clearInterval(statusCheckInterval);
     };
   }, [attempt?.id]);
 
@@ -1066,11 +1065,11 @@ export const PersistedAssessmentRunner: React.FC<PersistedAssessmentRunnerProps>
           >
             {!phoneConnected ? (
               <>
-                <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.5px' }}>
-                  CONNECT YOUR PHONE CAMERA
+                <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--accent-primary)', letterSpacing: '0.5px' }}>
+                  EXTERNAL ENVIRONMENT CAMERA
                 </h2>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: 460, margin: '6px auto 18px' }}>
-                  Use your phone as a secondary camera to provide an additional physical view during the assessment.
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: 480, margin: '6px auto 18px', lineHeight: 1.5 }}>
+                  Place your phone beside or behind the laptop with the <strong>rear camera</strong> facing your workspace and surrounding area. The phone provides external environment coverage while your laptop camera focuses on you.
                 </p>
 
                 {/* LARGE SCANNABLE QR CODE */}
@@ -1174,17 +1173,17 @@ export const PersistedAssessmentRunner: React.FC<PersistedAssessmentRunnerProps>
                 >
                   <CheckCircle2 size={32} color="#22c55e" />
                 </div>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#22c55e', margin: 0 }}>
-                  PHONE CAMERA
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--status-verified)', margin: 0 }}>
+                  EXTERNAL CAMERA
                 </h2>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#22c55e', margin: '4px 0 8px' }}>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--status-verified)', margin: '4px 0 8px' }}>
                   ● CONNECTED
                 </div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: 440, margin: '0 auto 16px' }}>
-                  Your phone is now connected as the secondary assessment camera.
+                  Your phone is now connected as the external environment camera.
                 </p>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Device: Physical Phone Stream Active · Heartbeat Synced
+                  Device: {phoneDeviceInfo || 'Physical Phone Camera'} · Rear Camera Active · Heartbeat Synced
                 </div>
               </div>
             )}
@@ -1439,6 +1438,75 @@ export const PersistedAssessmentRunner: React.FC<PersistedAssessmentRunnerProps>
                 {faceState.count} {faceState.count === 1 ? 'face' : 'faces'}
               </span>
             </div>
+          </div>
+        )}
+
+        {/* Compact External Environment Camera Status Card (PiP / Floating) */}
+        {policy.secondary_phone_camera && (
+          <div
+            style={{
+              position: 'fixed',
+              bottom: policy.laptop_camera ? 180 : 16,
+              right: 16,
+              zIndex: 100,
+              background: '#0D1B2A',
+              borderRadius: 'var(--radius-md)',
+              border: `1px solid ${phoneConnected ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.35)'}`,
+              overflow: 'hidden',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+              width: 180,
+              padding: '8px 10px',
+              fontSize: '0.72rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', fontSize: '0.68rem' }}>
+                <Smartphone size={12} color={phoneConnected ? 'var(--status-verified)' : '#EF4444'} />
+                <span>External Camera</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPhoneModal(true)}
+                style={{ background: 'none', border: 'none', color: '#00D4FF', cursor: 'pointer', padding: 0, fontSize: '0.68rem', fontWeight: 600 }}
+              >
+                {phoneConnected ? 'Details' : 'QR'}
+              </button>
+            </div>
+
+            {phoneConnected ? (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--status-verified)', fontWeight: 800 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--status-verified)' }} />
+                  <span>CONNECTED</span>
+                </div>
+                <div style={{ color: '#94A3B8', fontSize: '0.68rem', marginTop: 2 }}>
+                  Rear camera active
+                </div>
+                {phoneHeartbeatSecondsAgo !== null && (
+                  <div style={{ color: '#64748B', fontSize: '0.65rem', marginTop: 1 }}>
+                    Heartbeat: {phoneHeartbeatSecondsAgo === 0 ? 'Just now' : `${phoneHeartbeatSecondsAgo}s ago`}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#EF4444', fontWeight: 800 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
+                  <span>DISCONNECTED</span>
+                </div>
+                <div style={{ color: '#94A3B8', fontSize: '0.68rem', marginTop: 2 }}>
+                  External camera lost
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPhoneModal(true)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ width: '100%', padding: '3px 6px', fontSize: '0.68rem', marginTop: 4 }}
+                >
+                  Pair via QR
+                </button>
+              </div>
+            )}
           </div>
         )}
 
